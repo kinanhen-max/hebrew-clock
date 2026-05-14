@@ -243,7 +243,7 @@ def generate_clock_image():
     # Animal at bottom
     animal_name, animal_desc = get_animal(hour24, minute)
     draw.line([(40, H - 70), (W - 40, H - 70)], fill=180, width=1)
-    draw.text((W // 2, H - 48), animal_name + " — " + animal_desc, font=font_small, fill=80, anchor="mm")
+    draw.text((W // 2, H - 48), animal_name + " - " + animal_desc, font=font_small, fill=80, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
