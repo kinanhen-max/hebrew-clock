@@ -209,7 +209,8 @@ def get_israel_time():
 # ── Image generation ──────────────────────────────────
 def generate_clock_image():
     now = get_israel_time()
-    hour24, minute = now.hour, now.minute
+    hour24 = now.hour
+    minute = (now.minute // 5) * 5
 
     W, H = 800, 480
     img = Image.new("L", (W, H), color=255)
