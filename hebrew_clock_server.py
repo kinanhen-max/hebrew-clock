@@ -2,7 +2,6 @@
 """
 Hebrew Word Clock Server - Cloud version
 Serves a 800x480 PNG image of the current time in Hebrew words.
-Deploy on Render.com (free tier).
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -10,6 +9,8 @@ from PIL import Image, ImageDraw, ImageFont
 import datetime
 import io
 import os
+import urllib.request
+import sys
 
 PORT = int(os.environ.get("PORT", 8765))
 
@@ -57,19 +58,61 @@ def get_time_lines(hour24, minute):
         min_part = MINUTE_PREFIX.get(minute, "")
         return [HOURS[hour12 - 1] + " " + min_part, period]
 
+FONT_DIR = "/tmp"
+FONT_FILE = os.path.join(FONT_DIR, "NotoSansHebrew-Bold.ttf")
+
+# Google Fonts CDN URLs for Noto Sans Hebrew Bold (these are stable)
+FONT_URLS = [
+    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansHebrew/NotoSansHebrew-Bold.ttf",
+    "https://github.com/notofonts/hebrew/raw/main/fonts/NotoSansHebrew/hinted/ttf/NotoSansHebrew-Bold.ttf",
+    "https://fonts.gstatic.com/s/notosanshebrew/v46/of0pUkAVDdv1ti_aB8GNvD7AzgL3lHGZpL_X.ttf",
+]
+
+def download_font():
+    """Download Hebrew font on first run."""
+    if os.path.exists(FONT_FILE) and os.path.getsize(FONT_FILE) > 10000:
+        print(f"Font already exists at {FONT_FILE}")
+        return True
+    
+    for url in FONT_URLS:
+        try:
+            print(f"Trying to download font from: {url}")
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=30) as response:
+                data = response.read()
+                if len(data) > 10000:  # Sanity check - real font is at least 10KB
+                    with open(FONT_FILE, 'wb') as f:
+                        f.write(data)
+                    print(f"Font downloaded successfully ({len(data)} bytes)")
+                    return True
+                else:
+                    print(f"Downloaded file too small: {len(data)} bytes")
+        except Exception as e:
+            print(f"Failed: {e}")
+            continue
+    
+    print("WARNING: Could not download Hebrew font!")
+    return False
+
+FONT_AVAILABLE = False
+
 def find_font(size):
-    candidates = [
-        "/usr/share/fonts/truetype/noto/NotoSerifHebrew-Bold.ttf",
-        "/usr/share/fonts/truetype/noto/NotoSansHebrew-Bold.ttf",
+    global FONT_AVAILABLE
+    if FONT_AVAILABLE and os.path.exists(FONT_FILE):
+        try:
+            return ImageFont.truetype(FONT_FILE, size)
+        except Exception as e:
+            print(f"Font load error: {e}")
+    
+    # Fallbacks
+    for path in [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "fonts/NotoSerifHebrew-Bold.ttf",
-        "NotoSerifHebrew-Bold.ttf",
-    ]
-    for path in candidates:
+        "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+    ]:
         if os.path.exists(path):
             try:
                 return ImageFont.truetype(path, size)
-            except Exception:
+            except:
                 pass
     return ImageFont.load_default()
 
@@ -118,9 +161,15 @@ class ClockHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(img_bytes)
             except Exception as e:
-                print(f"Error: {e}")
+                print(f"Error: {e}", file=sys.stderr)
                 self.send_response(500)
                 self.end_headers()
+                self.wfile.write(str(e).encode())
+        elif self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"OK")
         else:
             self.send_response(404)
             self.end_headers()
@@ -129,5 +178,7 @@ class ClockHandler(BaseHTTPRequestHandler):
         pass
 
 if __name__ == "__main__":
-    print(f"Starting Hebrew Clock Server on port {PORT}")
+    print(f"Starting Hebrew Clock Server on port {PORT}", flush=True)
+    FONT_AVAILABLE = download_font()
+    print(f"Font available: {FONT_AVAILABLE}", flush=True)
     HTTPServer(("0.0.0.0", PORT), ClockHandler).serve_forever()
