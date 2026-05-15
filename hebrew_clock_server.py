@@ -106,9 +106,14 @@ def draw_sun(draw, cx, cy, r=22):
         draw.line([x1, y1, x2, y2], fill=0, width=2)
 
 def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=0, width=2)
-    draw.ellipse([cx-w//4, cy-h, cx+w//4, cy+4], outline=0, width=2)
-    draw.ellipse([cx+w//8, cy-h*2//3, cx+w//2+8, cy+h//4], outline=0, width=2)
+    # Draw filled white ellipses first, then outline on top
+    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], fill=255, outline=0, width=2)
+    draw.ellipse([cx-w//4, cy-h, cx+w//4, cy+4], fill=255, outline=0, width=2)
+    draw.ellipse([cx+w//8, cy-h*2//3, cx+w//2+8, cy+h//4], fill=255, outline=0, width=2)
+    # Cover internal lines with white fill
+    draw.rectangle([cx-w//2+2, cy-h//2+2, cx+w//2-2, cy+h//2-2], fill=255, outline=None)
+    draw.rectangle([cx-w//4+2, cy-h+2, cx+w//4-2, cy+4-2], fill=255, outline=None)
+    draw.rectangle([cx+w//8+2, cy-h*2//3+2, cx+w//2+6, cy+h//4-2], fill=255, outline=None)
 
 def draw_sun_cloud(draw, cx, cy):
     draw_sun(draw, cx-18, cy-12, r=16)
@@ -278,7 +283,7 @@ def generate_clock_image():
         icon_func(draw, icon_cx, icon_cy)
 
         # Temperature to the left of icon
-        temp_str = f"{temp}C"  # avoid ° symbol issues
+        temp_str = str(temp) + " מעלות"
         draw.text((W - PAD2 - 115, bar_cy - 18), temp_str, font=font_large.__class__ and get_font(40), fill=0, anchor="rm")
         draw.text((W - PAD2 - 115, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
 
