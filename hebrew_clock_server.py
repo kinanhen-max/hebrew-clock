@@ -106,28 +106,27 @@ def draw_sun(draw, cx, cy, r=22):
         draw.line([x1, y1, x2, y2], fill=0, width=2)
 
 def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    # Draw cloud as filled white shape with black outline
-    # Use 3 circles drawn back-to-front (fill then outline)
-    # Bottom rectangle base (white, no outline)
-    draw.rectangle([cx-w//2, cy-2, cx+w//2, cy+h//2], fill=255)
-    # Three bumps on top, filled white then outlined
+    # Flat bottom, bumpy top cloud
+    # Step 1: fill all white
+    draw.rectangle([cx-w//2, cy-h//2, cx+w//2, cy+h//2+4], fill=255)
+    # Top bumps (white filled circles)
     bumps = [
-        (cx - w//4, cy - h//3, h//2 + 2),   # left bump
-        (cx + w//8, cy - h//2, h//2),        # middle bump  
-        (cx + w//3, cy - h//4, h//3 + 2),   # right bump
+        (cx - w//3, cy - h//4, h//2),     # left bump
+        (cx,        cy - h//2, h//2 + 3), # center bump (tallest)
+        (cx + w//3, cy - h//4, h//2 - 2), # right bump
     ]
     for bx, by, br in bumps:
         draw.ellipse([bx-br, by-br, bx+br, by+br], fill=255)
-    # Main body ellipse
-    draw.ellipse([cx-w//2, cy-h//4, cx+w//2, cy+h//2], fill=255)
-    # Now draw outlines on top
+    # Step 2: draw outlines
     for bx, by, br in bumps:
         draw.ellipse([bx-br, by-br, bx+br, by+br], outline=0, width=2)
-    draw.ellipse([cx-w//2, cy-h//4, cx+w//2, cy+h//2], outline=0, width=2)
-    # Cover internal lines with white
-    draw.rectangle([cx-w//2+3, cy-h//4+3, cx+w//2-3, cy+h//2-3], fill=255)
-    for bx, by, br in bumps:
-        draw.rectangle([bx-br+3, by, bx+br-3, by+br-3], fill=255)
+    # Flat bottom line
+    draw.line([cx-w//2, cy+h//2+2, cx+w//2, cy+h//2+2], fill=0, width=2)
+    # Left and right sides
+    draw.line([cx-w//2, cy-2, cx-w//2, cy+h//2+2], fill=0, width=2)
+    draw.line([cx+w//2, cy-2, cx+w//2, cy+h//2+2], fill=0, width=2)
+    # Cover internal bump lines with white
+    draw.rectangle([cx-w//2+3, cy-h//4, cx+w//2-3, cy+h//2], fill=255)
 
 def draw_sun_cloud(draw, cx, cy):
     draw_sun(draw, cx-18, cy-12, r=16)
@@ -292,7 +291,7 @@ def generate_clock_image():
         draw.text((rx - 80, bar_cy - 12), f"{temp}°", font=font_num, fill=0, anchor="rm")
 
         # Description — bottom row, aligned with temp
-        draw.text((rx - 25, bar_cy + 20), desc, font=font_small, fill=0, anchor="rm")
+        draw.text((rx - 25, bar_cy + 16), desc, font=font_small, fill=0, anchor="rm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
