@@ -1,154 +1,304 @@
-<!DOCTYPE html>
-<html lang="he">
-<head>
-<meta charset="UTF-8">
-<title>שעון עברי - מוקאפ</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #2a2a2a;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 40px;
-  }
-  .device {
-    background: #e8e4db;
-    border-radius: 12px;
-    padding: 18px;
-    box-shadow: 0 0 0 2px #c5c0b5, 0 20px 60px rgba(0,0,0,0.5);
-  }
-  .screen {
-    width: 640px;
-    height: 384px;
-    background: #f0ece3;
-    position: relative;
-    overflow: hidden;
-  }
-  .screen::before {
-    content: '';
-    position: absolute;
-    inset: 6px;
-    border: 2px solid #1a1a1a;
-    pointer-events: none;
-    z-index: 10;
-  }
-  .screen::after {
-    content: '';
-    position: absolute;
-    inset: 13px;
-    border: 1px solid #1a1a1a;
-    pointer-events: none;
-    z-index: 10;
-  }
+#!/usr/bin/env python3
+"""
+Hebrew Word Clock + Weather - Tel Aviv
+"""
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from PIL import Image, ImageDraw, ImageFont
+import datetime, io, os, urllib.request, urllib.parse, json, sys
 
-  /* Time center */
-  .time-area {
-    position: absolute;
-    top: 20px; left: 0; right: 0; bottom: 90px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    direction: rtl;
-  }
-  .time-main   { font-size: 72px; font-weight: bold; color: #111; line-height: 1.1; font-family: 'Times New Roman', serif; }
-  .time-min    { font-size: 56px; font-weight: bold; color: #111; line-height: 1.1; font-family: 'Times New Roman', serif; }
-  .time-period { font-size: 34px; color: #222; margin-top: 6px; font-family: 'Times New Roman', serif; }
+PORT = int(os.environ.get("PORT", 8765))
 
-  /* Bottom bar — LTR: [analog] | [weather on RIGHT] */
-  .bottom-bar {
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 88px;
-    border-top: 1px solid #333;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    direction: ltr;
-  }
+# ── Hebrew time tables ────────────────────────────────
+HOURS = [
+    "אַחַת", "שְׁתַּיִם", "שָׁלוֹשׁ", "אַרְבַּע", "חָמֵשׁ", "שֵׁשׁ",
+    "שֶׁבַע", "שְׁמוֹנֶה", "תֵּשַׁע", "עֶשֶׂר", "אַחַת עֶשְׂרֵה", "שְׁתֵּים עֶשְׂרֵה"
+]
+HOURS_LAMED = [
+    "לְאַחַת", "לִשְׁתַּיִם", "לְשָׁלוֹשׁ", "לְאַרְבַּע", "לְחָמֵשׁ", "לְשֵׁשׁ",
+    "לְשֶׁבַע", "לִשְׁמוֹנֶה", "לְתֵשַׁע", "לְעֶשֶׂר", "לְאַחַת עֶשְׂרֵה", "לִשְׁתֵּים עֶשְׂרֵה"
+]
+MINUTE_PREFIX = [
+    "", "וְדַקָּה אַחַת", "וּשְׁתֵּי דַקּוֹת", "וְשָׁלוֹשׁ דַקּוֹת",
+    "וְאַרְבַּע דַקּוֹת", "וְחָמֵשׁ דַקּוֹת", "וְשֵׁשׁ דַקּוֹת", "וְשֶׁבַע דַקּוֹת",
+    "וּשְׁמוֹנֶה דַקּוֹת", "וְתֵשַׁע דַקּוֹת", "וְעֶשֶׂר דַקּוֹת",
+    "וְאַחַת עֶשְׂרֵה דַּקּוֹת", "וּשְׁתֵּים עֶשְׂרֵה דַּקּוֹת",
+    "וּשְׁלוֹשׁ עֶשְׂרֵה דַּקּוֹת", "וְאַרְבַּע עֶשְׂרֵה דַּקּוֹת",
+    "וָרֶבַע", "וְשֵׁשׁ עֶשְׂרֵה דַּקּוֹת", "וּשְׁבַע עֶשְׂרֵה דַּקּוֹת",
+    "וּשְׁמוֹנֶה עֶשְׂרֵה דַּקּוֹת", "וּתְשַׁע עֶשְׂרֵה דַּקּוֹת",
+    "וְעֶשְׂרִים דַקּוֹת", "וְעֶשְׂרִים וְאַחַת", "וְעֶשְׂרִים וּשְׁתַּיִם",
+    "וְעֶשְׂרִים וְשָׁלוֹשׁ", "וְעֶשְׂרִים וְאַרְבַּע", "וְעֶשְׂרִים וְחָמֵשׁ",
+    "וְעֶשְׂרִים וְשֵׁשׁ", "וְעֶשְׂרִים וְשֶׁבַע", "וְעֶשְׂרִים וּשְׁמוֹנֶה",
+    "וְעֶשְׂרִים וְתֵשַׁע", "וָחֵצִי", "וּשְׁלוֹשִׁים וְאַחַת",
+    "וּשְׁלוֹשִׁים וּשְׁתַּיִם", "וּשְׁלוֹשִׁים וְשָׁלוֹשׁ", "וּשְׁלוֹשִׁים וְאַרְבַּע",
+    "וּשְׁלוֹשִׁים וְחָמֵשׁ", "וּשְׁלוֹשִׁים וְשֵׁשׁ", "וּשְׁלוֹשִׁים וְשֶׁבַע",
+    "וּשְׁלוֹשִׁים וּשְׁמוֹנֶה", "וּשְׁלוֹשִׁים וְתֵשַׁע", "",
+    "וְאַרְבָּעִים וְאַחַת", "וְאַרְבָּעִים וּשְׁתַּיִם", "וְאַרְבָּעִים וְשָׁלוֹשׁ",
+    "וְאַרְבָּעִים וְאַרְבַּע", "", "וְאַרְבָּעִים וְשֵׁשׁ", "וְאַרְבָּעִים וְשֶׁבַע",
+    "וְאַרְבָּעִים וּשְׁמוֹנֶה", "וְאַרְבָּעִים וְתֵשַׁע", "",
+    "וַחֲמִשִּׁים וְאַחַת", "וַחֲמִשִּׁים וּשְׁתַּיִם", "וַחֲמִשִּׁים וְשָׁלוֹשׁ",
+    "וַחֲמִשִּׁים וְאַרְבַּע", "", "וַחֲמִשִּׁים וְשֵׁשׁ", "וַחֲמִשִּׁים וְשֶׁבַע",
+    "וַחֲמִשִּׁים וּשְׁמוֹנֶה", "וַחֲמִשִּׁים וְתֵשַׁע",
+]
+SUBTRACT_AMOUNT = {40: "עֶשְׂרִים", 45: "רֶבַע", 50: "עֲשָׂרָה", 55: "חֲמִשָּׁה"}
 
-  /* Left side: analog clock */
-  .left-side {
-    display: flex;
-    align-items: center;
-    gap: 0;
-  }
+def get_time_period(h):
+    if 6 <= h < 12:  return "בַּבֹּקֶר"
+    if 12 <= h < 18: return "בַּצָּהֳרַיִם"
+    if 18 <= h < 24: return "בָּעֶרֶב"
+    if 0 <= h < 4:   return "בַּלַּיְלָה"
+    return "לִפְנוֹת בֹּקֶר"
 
-  .analog { width: 64px; height: 64px; flex-shrink: 0; }
-  .divider { width: 1px; height: 52px; background: #bbb; margin: 0 20px; }
+def get_time_lines(h24, m):
+    m = (m // 5) * 5
+    h12 = h24 % 12 or 12
+    period = get_time_period(h24)
+    if m in SUBTRACT_AMOUNT:
+        return [SUBTRACT_AMOUNT[m] + " " + HOURS_LAMED[h12 % 12], period]
+    elif m == 0:
+        return [HOURS[h12 - 1], period]
+    else:
+        mp = MINUTE_PREFIX[m]
+        hp = HOURS[h12 - 1]
+        if len(hp + mp) > 25:
+            return [hp, mp, period]
+        return [hp + " " + mp, period]
 
-  /* Right side: weather */
-  .right-side {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-  .wi { width: 52px; height: 52px; }
-  .wtemp { font-size: 38px; font-weight: bold; color: #111; font-family: 'Times New Roman', serif; line-height: 1; }
-  .wdesc { font-size: 15px; color: #444; font-family: 'Times New Roman', serif; margin-top: 3px; }
-</style>
-</head>
-<body>
+# ── Weather ───────────────────────────────────────────
+# WMO weather codes → Hebrew description + icon drawing function name
+WMO_CODES = {
+    0:  ("שמשי", "sun"),
+    1:  ("בהיר בעיקר", "sun"),
+    2:  ("מעונן חלקי", "sun_cloud"),
+    3:  ("מעונן", "cloud"),
+    45: ("ערפל", "cloud"),
+    48: ("ערפל", "cloud"),
+    51: ("טפטוף", "cloud_rain"),
+    53: ("טפטוף", "cloud_rain"),
+    55: ("טפטוף", "cloud_rain"),
+    61: ("גשם קל", "cloud_rain"),
+    63: ("גשם", "cloud_rain"),
+    65: ("גשם כבד", "cloud_rain"),
+    71: ("שלג קל", "cloud_snow"),
+    73: ("שלג", "cloud_snow"),
+    75: ("שלג כבד", "cloud_snow"),
+    80: ("מקלחות", "cloud_rain"),
+    81: ("מקלחות", "cloud_rain"),
+    82: ("מקלחות", "cloud_rain"),
+    95: ("סופת רעמים", "thunder"),
+    96: ("סופת רעמים", "thunder"),
+    99: ("סופת רעמים", "thunder"),
+}
 
-<div class="device">
-  <div class="screen">
+_weather_cache = {"data": None, "time": None}
 
-    <div class="time-area">
-      <div class="time-main">שְׁתַּיִם עֶשְׂרֵה</div>
-      <div class="time-min">וָחֵצִי</div>
-      <div class="time-period">בַּצָּהֳרַיִם</div>
-    </div>
+def get_weather():
+    global _weather_cache
+    now = datetime.datetime.utcnow()
+    if _weather_cache["time"] and (now - _weather_cache["time"]).seconds < 900:
+        return _weather_cache["data"]
+    try:
+        url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&hourly=apparent_temperature&timezone=Asia/Jerusalem&forecast_days=1"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=10) as r:
+            data = json.loads(r.read())
+            cw = data["current_weather"]
+            result = {
+                "temp": round(cw["temperature"]),
+                "code": cw["weathercode"],
+                "is_day": cw.get("is_day", 1),
+            }
+            _weather_cache = {"data": result, "time": now}
+            return result
+    except Exception as e:
+        print(f"Weather error: {e}", file=sys.stderr)
+        return None
 
-    <div class="bottom-bar">
+# ── Draw weather icons (SVG-like with PIL) ────────────
+def draw_sun(draw, cx, cy, r=28):
+    """Draw a sun with rays"""
+    draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=0, width=3)
+    import math
+    for angle in range(0, 360, 45):
+        rad = math.radians(angle)
+        x1 = cx + (r+5) * math.cos(rad)
+        y1 = cy + (r+5) * math.sin(rad)
+        x2 = cx + (r+14) * math.cos(rad)
+        y2 = cy + (r+14) * math.sin(rad)
+        draw.line([x1, y1, x2, y2], fill=0, width=3)
 
-      <!-- LEFT: analog clock -->
-      <div class="left-side">
-        <svg class="analog" viewBox="0 0 100 100" fill="none" stroke="#111" stroke-linecap="round">
-          <circle cx="50" cy="50" r="44" stroke-width="2.5"/>
-          <line x1="50" y1="10" x2="50" y2="18" stroke-width="2.5"/>
-          <line x1="90" y1="50" x2="82" y2="50" stroke-width="2.5"/>
-          <line x1="50" y1="90" x2="50" y2="82" stroke-width="2.5"/>
-          <line x1="10" y1="50" x2="18" y2="50" stroke-width="2.5"/>
-          <line x1="74" y1="14" x2="71" y2="19" stroke-width="1.5"/>
-          <line x1="86" y1="26" x2="81" y2="29" stroke-width="1.5"/>
-          <line x1="86" y1="74" x2="81" y2="71" stroke-width="1.5"/>
-          <line x1="74" y1="86" x2="71" y2="81" stroke-width="1.5"/>
-          <line x1="26" y1="86" x2="29" y2="81" stroke-width="1.5"/>
-          <line x1="14" y1="74" x2="19" y2="71" stroke-width="1.5"/>
-          <line x1="14" y1="26" x2="19" y2="29" stroke-width="1.5"/>
-          <line x1="26" y1="14" x2="29" y2="19" stroke-width="1.5"/>
-          <line x1="50" y1="50" x2="53" y2="23" stroke-width="4" stroke-linecap="round"/>
-          <line x1="50" y1="50" x2="50" y2="78" stroke-width="2.5" stroke-linecap="round"/>
-          <circle cx="50" cy="50" r="3.5" fill="#111" stroke="none"/>
-        </svg>
-        <div class="divider"></div>
-      </div>
+def draw_cloud(draw, cx, cy, w=70, h=35):
+    """Draw a cloud shape"""
+    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=0, width=3)
+    draw.ellipse([cx-w//3, cy-h, cx+w//3, cy], outline=0, width=3)
+    draw.ellipse([cx+w//6, cy-h*2//3, cx+w//2+10, cy+h//6], outline=0, width=3)
 
-      <!-- RIGHT: weather icon + temp + desc -->
-      <div class="right-side">
-        <div>
-          <div class="wtemp">28°</div>
-          <div class="wdesc">מעונן חלקי</div>
-        </div>
-        <svg class="wi" viewBox="0 0 50 50" fill="none" stroke="#111" stroke-width="2.5" stroke-linecap="round">
-          <circle cx="17" cy="19" r="8"/>
-          <line x1="17" y1="5" x2="17" y2="2"/>
-          <line x1="17" y1="33" x2="17" y2="36"/>
-          <line x1="3" y1="19" x2="0" y2="19"/>
-          <line x1="31" y1="19" x2="34" y2="19"/>
-          <line x1="7" y1="9" x2="4" y2="6"/>
-          <line x1="27" y1="9" x2="30" y2="6"/>
-          <path d="M22 35 Q16 35 16 29 Q16 24 22 24 Q24 18 30 18 Q38 18 38 26 Q42 26 42 31 Q42 35 37 35 Z" fill="#f0ece3" stroke="#111"/>
-        </svg>
-      </div>
+def draw_sun_cloud(draw, cx, cy):
+    draw_sun(draw, cx-20, cy-15, r=20)
+    draw_cloud(draw, cx+15, cy+10, w=55, h=28)
 
-    </div>
-  </div>
-</div>
+def draw_cloud_rain(draw, cx, cy):
+    draw_cloud(draw, cx, cy-10, w=65, h=32)
+    import math
+    for i, offset in enumerate([-20, -5, 10, 25]):
+        x = cx + offset
+        draw.line([x, cy+20, x-6, cy+38], fill=0, width=2)
 
-</body>
-</html>
+def draw_cloud_snow(draw, cx, cy):
+    draw_cloud(draw, cx, cy-10, w=65, h=32)
+    for offset in [-20, -5, 10, 25]:
+        x = cx + offset
+        y = cy + 30
+        draw.ellipse([x-3, y-3, x+3, y+3], fill=0)
+
+def draw_thunder(draw, cx, cy):
+    draw_cloud(draw, cx, cy-10, w=65, h=32)
+    pts = [(cx+5, cy+15), (cx-5, cy+30), (cx+3, cy+30), (cx-8, cy+48)]
+    draw.line(pts, fill=0, width=3)
+
+ICON_FUNCS = {
+    "sun": draw_sun,
+    "sun_cloud": draw_sun_cloud,
+    "cloud": draw_cloud,
+    "cloud_rain": draw_cloud_rain,
+    "cloud_snow": draw_cloud_snow,
+    "thunder": draw_thunder,
+}
+
+# ── Font ──────────────────────────────────────────────
+FONT_PATH = "/tmp/NotoSerifHebrew-Bold.ttf"
+FONT_URLS = [
+    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSerifHebrew/NotoSerifHebrew-Bold.ttf",
+    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansHebrew/NotoSansHebrew-Bold.ttf",
+]
+FONT_AVAILABLE = False
+
+def download_font():
+    global FONT_AVAILABLE
+    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 10000:
+        FONT_AVAILABLE = True
+        return
+    for url in FONT_URLS:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = r.read()
+                if len(data) > 10000:
+                    with open(FONT_PATH, "wb") as f: f.write(data)
+                    FONT_AVAILABLE = True
+                    return
+        except Exception as e:
+            print(f"Font fail: {e}")
+
+def get_font(size):
+    if FONT_AVAILABLE and os.path.exists(FONT_PATH):
+        try: return ImageFont.truetype(FONT_PATH, size)
+        except: pass
+    for p in ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]:
+        if os.path.exists(p):
+            try: return ImageFont.truetype(p, size)
+            except: pass
+    return ImageFont.load_default()
+
+def get_israel_time():
+    utc = datetime.datetime.utcnow()
+    return utc + datetime.timedelta(hours=3 if 3 <= utc.month <= 10 else 2)
+
+# ── Main image generation ─────────────────────────────
+def generate_clock_image():
+    now = get_israel_time()
+    h24, m = now.hour, now.minute
+
+    W, H = 800, 480
+    img = Image.new("L", (W, H), color=255)
+    draw = ImageDraw.Draw(img)
+
+    # Double border
+    PAD1, PAD2 = 8, 16
+    draw.rectangle([PAD1, PAD1, W-PAD1, H-PAD1], outline=0, width=3)
+    draw.rectangle([PAD2, PAD2, W-PAD2, H-PAD2], outline=0, width=1)
+
+    # Time
+    period_words = {"בַּבֹּקֶר","בַּצָּהֳרַיִם","בָּעֶרֶב","בַּלַּיְלָה","לִפְנוֹת בֹּקֶר"}
+    lines = get_time_lines(h24, m)
+    time_lines = [l for l in lines if l not in period_words]
+    period_line = next((l for l in lines if l in period_words), "")
+
+    font_large  = get_font(88)
+    font_medium = get_font(50)
+    font_small  = get_font(28)
+    font_temp   = get_font(42)
+
+    n = len(time_lines)
+    line_h = 100
+    total_h = n * line_h
+    # Center time in upper 3/4 of screen
+    start_y = (H * 3 // 4 - total_h) // 2 + 30
+
+    for i, line in enumerate(time_lines):
+        draw.text((W//2, start_y + i*line_h), line, font=font_large, fill=0, anchor="mm")
+
+    if period_line:
+        draw.text((W//2, start_y + n*line_h + 10), period_line, font=font_medium, fill=0, anchor="mm")
+
+    # Bottom separator
+    sep_y = H - 105
+    draw.line([(PAD2+8, sep_y), (W-PAD2-8, sep_y)], fill=0, width=1)
+
+    # Weather section
+    weather = get_weather()
+    if weather:
+        code = weather["code"]
+        temp = weather["temp"]
+        desc, icon_key = WMO_CODES.get(code, ("לא ידוע", "cloud"))
+
+        # Draw icon on the left
+        icon_cx = PAD2 + 70
+        icon_cy = H - 55
+        icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
+        icon_func(draw, icon_cx, icon_cy)
+
+        # Temperature
+        draw.text((PAD2 + 155, H - 65), f"{temp}°", font=font_temp, fill=0, anchor="lm")
+
+        # Description
+        draw.text((PAD2 + 155, H - 32), desc, font=font_small, fill=0, anchor="lm")
+
+        # City name on right
+        draw.text((W - PAD2 - 20, H - 48), "תל אביב", font=font_small, fill=100, anchor="rm")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.read()
+
+class ClockHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path in ("/clock.png", "/clock", "/"):
+            try:
+                img = generate_clock_image()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Length", str(len(img)))
+                self.send_header("Cache-Control", "no-cache")
+                self.end_headers()
+                self.wfile.write(img)
+            except Exception as e:
+                print(f"Error: {e}", file=sys.stderr)
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(str(e).encode())
+        elif self.path == "/health":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            self.wfile.write(b"OK")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def log_message(self, fmt, *args): pass
+
+if __name__ == "__main__":
+    print(f"Starting Hebrew Clock + Weather on port {PORT}", flush=True)
+    download_font()
+    HTTPServer(("0.0.0.0", PORT), ClockHandler).serve_forever()
