@@ -262,18 +262,19 @@ def generate_clock_image():
     # Bottom bar height = 105px, center = H - 52
     bar_cy = H - 52
 
-    # LEFT: analog clock - centered in left third
-    left_section_center = (PAD2 + 8 + div_x) // 2
-    clock_cx = left_section_center
-    clock_r  = 38
-    draw_analog_clock(draw, clock_cx, bar_cy, clock_r, h24, m)
-
-    # Split bottom bar into 3 equal sections
+    # Split bottom bar into 3 equal sections — define FIRST
     bar_left = PAD2 + 8
     bar_right = W - PAD2 - 8
     bar_width = bar_right - bar_left
-    div_x = bar_left + bar_width // 3        # after clock section
-    div_x2 = bar_left + 2 * bar_width // 3  # after date section
+    div_x = bar_left + bar_width // 3
+    div_x2 = bar_left + 2 * bar_width // 3
+
+    # LEFT: analog clock - centered in left third
+    clock_cx = (bar_left + div_x) // 2
+    clock_r  = 38
+    draw_analog_clock(draw, clock_cx, bar_cy, clock_r, h24, m)
+
+    # Divider lines
     draw.line([(div_x, H - 92), (div_x, H - 15)], fill=0, width=1)
     draw.line([(div_x2, H - 92), (div_x2, H - 15)], fill=0, width=1)
 
