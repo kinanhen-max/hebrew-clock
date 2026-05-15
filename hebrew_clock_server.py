@@ -106,21 +106,28 @@ def draw_sun(draw, cx, cy, r=22):
         draw.line([x1, y1, x2, y2], fill=0, width=2)
 
 def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    # Simple clean cloud: 3 overlapping filled circles + white rectangle base
-    r1 = h // 2 + 2      # main body
-    r2 = int(h * 0.55)   # left top bump
-    r3 = int(h * 0.45)   # right top bump
-    # Fill circles white first
-    draw.ellipse([cx-r1, cy-r1, cx+r1, cy+r1], fill=255)
-    draw.ellipse([cx-w//3-r2, cy-r2//2-r2, cx-w//3+r2, cy-r2//2+r2], fill=255)
-    draw.ellipse([cx+w//5-r3, cy-r3//3-r3, cx+w//5+r3, cy-r3//3+r3], fill=255)
-    # Draw outlines
-    draw.ellipse([cx-r1, cy-r1, cx+r1, cy+r1], outline=0, width=2)
-    draw.ellipse([cx-w//3-r2, cy-r2//2-r2, cx-w//3+r2, cy-r2//2+r2], outline=0, width=2)
-    draw.ellipse([cx+w//5-r3, cy-r3//3-r3, cx+w//5+r3, cy-r3//3+r3], outline=0, width=2)
-    # White fill to hide internal overlap lines
-    draw.rectangle([cx-r1+2, cy-2, cx+r1-2, cy+r1-2], fill=255, outline=None)
-    draw.rectangle([cx-w//3-r2+4, cy-r2//2, cx+w//5+r3-4, cy+4], fill=255, outline=None)
+    # Draw cloud as filled white shape with black outline
+    # Use 3 circles drawn back-to-front (fill then outline)
+    # Bottom rectangle base (white, no outline)
+    draw.rectangle([cx-w//2, cy-2, cx+w//2, cy+h//2], fill=255)
+    # Three bumps on top, filled white then outlined
+    bumps = [
+        (cx - w//4, cy - h//3, h//2 + 2),   # left bump
+        (cx + w//8, cy - h//2, h//2),        # middle bump  
+        (cx + w//3, cy - h//4, h//3 + 2),   # right bump
+    ]
+    for bx, by, br in bumps:
+        draw.ellipse([bx-br, by-br, bx+br, by+br], fill=255)
+    # Main body ellipse
+    draw.ellipse([cx-w//2, cy-h//4, cx+w//2, cy+h//2], fill=255)
+    # Now draw outlines on top
+    for bx, by, br in bumps:
+        draw.ellipse([bx-br, by-br, bx+br, by+br], outline=0, width=2)
+    draw.ellipse([cx-w//2, cy-h//4, cx+w//2, cy+h//2], outline=0, width=2)
+    # Cover internal lines with white
+    draw.rectangle([cx-w//2+3, cy-h//4+3, cx+w//2-3, cy+h//2-3], fill=255)
+    for bx, by, br in bumps:
+        draw.rectangle([bx-br+3, by, bx+br-3, by+br-3], fill=255)
 
 def draw_sun_cloud(draw, cx, cy):
     draw_sun(draw, cx-18, cy-12, r=16)
@@ -263,26 +270,29 @@ def generate_clock_image():
     div_x = PAD2 + 105
     draw.line([(div_x, H - 95), (div_x, H - 12)], fill=180, width=1)
 
-    # RIGHT: [icon] [temp°] [desc] — nicely spaced
+    # RIGHT side weather block
     weather = get_weather()
     if weather:
         code = weather["code"]
         temp = weather["temp"]
         desc, icon_key = WMO_CODES.get(code, ("לא ידוע", "cloud"))
 
-        font_num = get_font(38)
+        font_num = get_font(40)
 
-        # Icon on far right
-        icon_cx = W - PAD2 - 38
-        icon_cy = bar_cy - 5
+        # Right edge X
+        rx = W - PAD2 - 20
+
+        # Draw PIL icon — far right, vertically centered in bar
+        icon_cx = rx - 32
+        icon_cy = bar_cy - 8
         icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
         icon_func(draw, icon_cx, icon_cy)
 
-        # Temperature to left of icon
-        draw.text((W - PAD2 - 85, bar_cy - 8), f"{temp}°", font=font_num, fill=0, anchor="mm")
+        # Temperature — to left of icon, top row
+        draw.text((rx - 80, bar_cy - 12), f"{temp}°", font=font_num, fill=0, anchor="rm")
 
-        # Description below temperature
-        draw.text((W - PAD2 - 85, bar_cy + 22), desc, font=font_small, fill=0, anchor="mm")
+        # Description — bottom row, aligned with temp
+        draw.text((rx - 25, bar_cy + 20), desc, font=font_small, fill=0, anchor="rm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
