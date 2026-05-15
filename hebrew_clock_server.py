@@ -181,33 +181,20 @@ def draw_analog_clock(draw, cx, cy, r, h24, m):
     draw.ellipse([cx-4, cy-4, cx+4, cy+4], fill=0)
 
 # ── Font ──────────────────────────────────────────────
-FONT_PATH = "/tmp/NotoSansHebrew-Bold-v2.ttf"
-FONT_URLS = [
-    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansHebrew/NotoSansHebrew-Bold.ttf",
-    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSerifHebrew/NotoSerifHebrew-Bold.ttf",
-]
 FONT_AVAILABLE = False
+BUNDLED_FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "font.ttf")
 
 def download_font():
     global FONT_AVAILABLE
-    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 10000:
+    if os.path.exists(BUNDLED_FONT) and os.path.getsize(BUNDLED_FONT) > 10000:
+        print(f"Using bundled font: {BUNDLED_FONT}", flush=True)
         FONT_AVAILABLE = True
-        return
-    for url in FONT_URLS:
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=30) as r:
-                data = r.read()
-                if len(data) > 10000:
-                    with open(FONT_PATH, "wb") as f: f.write(data)
-                    FONT_AVAILABLE = True
-                    return
-        except Exception as e:
-            print(f"Font fail: {e}")
+    else:
+        print(f"Font not found at {BUNDLED_FONT}", flush=True)
 
 def get_font(size):
-    if FONT_AVAILABLE and os.path.exists(FONT_PATH):
-        try: return ImageFont.truetype(FONT_PATH, size)
+    if FONT_AVAILABLE and os.path.exists(BUNDLED_FONT):
+        try: return ImageFont.truetype(BUNDLED_FONT, size)
         except: pass
     for p in ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]:
         if os.path.exists(p):
