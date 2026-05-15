@@ -43,9 +43,11 @@ SUBTRACT_AMOUNT = {40: "עֶשְׂרִים", 45: "רֶבַע", 50: "עֲשָׂר
 
 def get_time_period(h):
     if 6 <= h < 12:  return "בַּבֹּקֶר"
-    if 12 <= h < 18: return "בַּצָּהֳרַיִם"
-    if 18 <= h < 24: return "בָּעֶרֶב"
-    if 0 <= h < 4:   return "בַּלַּיְלָה"
+    if 12 <= h < 16: return "בַּצָּהֳרַיִם"
+    if 16 <= h < 18: return "אַחַר הַצָּהֳרַיִם"
+    if 18 <= h < 21: return "בָּעֶרֶב"
+    if 21 <= h < 24: return "בַּלַּיְלָה"
+    if 0 <= h < 3:   return "בַּלַּיְלָה"
     return "לִפְנוֹת בֹּקֶר"
 
 def get_time_lines(h24, m):
