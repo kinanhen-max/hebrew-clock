@@ -183,16 +183,16 @@ def draw_analog_clock(draw, cx, cy, r, h24, m):
 # ── Font ──────────────────────────────────────────────
 FONT_PATH = "/tmp/NotoSerifHebrew-Bold.ttf"
 FONT_URLS = [
-    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSerifHebrew/NotoSerifHebrew-Bold.ttf",
     "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansHebrew/NotoSansHebrew-Bold.ttf",
+    "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSerifHebrew/NotoSerifHebrew-Bold.ttf",
 ]
 FONT_AVAILABLE = False
 
 def download_font():
     global FONT_AVAILABLE
-    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 10000:
-        FONT_AVAILABLE = True
-        return
+    # Force re-download if file exists but might be wrong font
+    if os.path.exists(FONT_PATH):
+        os.remove(FONT_PATH)
     for url in FONT_URLS:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -283,9 +283,24 @@ def generate_clock_image():
         icon_func(draw, icon_cx, icon_cy)
 
         # Temperature to the left of icon
-        temp_str = str(temp) + " מעלות"
-        draw.text((W - PAD2 - 115, bar_cy - 18), temp_str, font=font_large.__class__ and get_font(40), fill=0, anchor="rm")
-        draw.text((W - PAD2 - 115, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
+        # Hebrew number words for temperature
+        def temp_to_hebrew(t):
+            tens = {2:"עשרים", 3:"שלושים", 4:"ארבעים"}
+            ones = {1:"אחת", 2:"שתיים", 3:"שלוש", 4:"ארבע", 5:"חמש",
+                    6:"שש", 7:"שבע", 8:"שמונה", 9:"תשע"}
+            if t <= 0: return "קר"
+            if t < 10: return ones.get(t, str(t))
+            if t == 10: return "עשר"
+            if t == 20: return "עשרים"
+            if t == 30: return "שלושים"
+            ten = (t // 10) * 10
+            one = t % 10
+            if one == 0: return tens.get(t//10, str(t))
+            return tens.get(ten//10, "") + " ו" + ones.get(one, str(one))
+
+        font_num = get_font(38)
+        draw.text((W - PAD2 - 70, bar_cy - 18), f"{temp}", font=font_num, fill=0, anchor="rm")
+        draw.text((W - PAD2 - 70, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
