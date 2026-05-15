@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-Hebrew Word Clock + Weather - Tel Aviv
+Hebrew Word Clock + Weather + Analog Clock
 """
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from PIL import Image, ImageDraw, ImageFont
-import datetime, io, os, urllib.request, urllib.parse, json, sys
+import datetime, io, os, urllib.request, json, sys, math
 
 PORT = int(os.environ.get("PORT", 8765))
 
@@ -64,29 +64,14 @@ def get_time_lines(h24, m):
         return [hp + " " + mp, period]
 
 # ── Weather ───────────────────────────────────────────
-# WMO weather codes → Hebrew description + icon drawing function name
 WMO_CODES = {
-    0:  ("שמשי", "sun"),
-    1:  ("בהיר בעיקר", "sun"),
-    2:  ("מעונן חלקי", "sun_cloud"),
-    3:  ("מעונן", "cloud"),
-    45: ("ערפל", "cloud"),
-    48: ("ערפל", "cloud"),
-    51: ("טפטוף", "cloud_rain"),
-    53: ("טפטוף", "cloud_rain"),
-    55: ("טפטוף", "cloud_rain"),
-    61: ("גשם קל", "cloud_rain"),
-    63: ("גשם", "cloud_rain"),
-    65: ("גשם כבד", "cloud_rain"),
-    71: ("שלג קל", "cloud_snow"),
-    73: ("שלג", "cloud_snow"),
-    75: ("שלג כבד", "cloud_snow"),
-    80: ("מקלחות", "cloud_rain"),
-    81: ("מקלחות", "cloud_rain"),
-    82: ("מקלחות", "cloud_rain"),
-    95: ("סופת רעמים", "thunder"),
-    96: ("סופת רעמים", "thunder"),
-    99: ("סופת רעמים", "thunder"),
+    0: ("שמשי", "sun"), 1: ("בהיר", "sun"), 2: ("מעונן חלקי", "sun_cloud"),
+    3: ("מעונן", "cloud"), 45: ("ערפל", "cloud"), 48: ("ערפל", "cloud"),
+    51: ("טפטוף", "cloud_rain"), 53: ("טפטוף", "cloud_rain"), 55: ("טפטוף", "cloud_rain"),
+    61: ("גשם קל", "cloud_rain"), 63: ("גשם", "cloud_rain"), 65: ("גשם כבד", "cloud_rain"),
+    71: ("שלג", "cloud_snow"), 73: ("שלג", "cloud_snow"), 75: ("שלג", "cloud_snow"),
+    80: ("מקלחות", "cloud_rain"), 81: ("מקלחות", "cloud_rain"), 82: ("מקלחות", "cloud_rain"),
+    95: ("סופת רעמים", "thunder"), 96: ("סופת רעמים", "thunder"), 99: ("סופת רעמים", "thunder"),
 }
 
 _weather_cache = {"data": None, "time": None}
@@ -97,72 +82,98 @@ def get_weather():
     if _weather_cache["time"] and (now - _weather_cache["time"]).seconds < 900:
         return _weather_cache["data"]
     try:
-        url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&hourly=apparent_temperature&timezone=Asia/Jerusalem&forecast_days=1"
+        url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&timezone=Asia/Jerusalem&forecast_days=1"
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
             cw = data["current_weather"]
-            result = {
-                "temp": round(cw["temperature"]),
-                "code": cw["weathercode"],
-                "is_day": cw.get("is_day", 1),
-            }
+            result = {"temp": round(cw["temperature"]), "code": cw["weathercode"]}
             _weather_cache = {"data": result, "time": now}
             return result
     except Exception as e:
         print(f"Weather error: {e}", file=sys.stderr)
         return None
 
-# ── Draw weather icons (SVG-like with PIL) ────────────
-def draw_sun(draw, cx, cy, r=28):
-    """Draw a sun with rays"""
+# ── Draw weather icons ────────────────────────────────
+def draw_sun(draw, cx, cy, r=22):
     draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=0, width=3)
-    import math
     for angle in range(0, 360, 45):
         rad = math.radians(angle)
         x1 = cx + (r+5) * math.cos(rad)
         y1 = cy + (r+5) * math.sin(rad)
-        x2 = cx + (r+14) * math.cos(rad)
-        y2 = cy + (r+14) * math.sin(rad)
-        draw.line([x1, y1, x2, y2], fill=0, width=3)
+        x2 = cx + (r+12) * math.cos(rad)
+        y2 = cy + (r+12) * math.sin(rad)
+        draw.line([x1, y1, x2, y2], fill=0, width=2)
 
-def draw_cloud(draw, cx, cy, w=70, h=35):
-    """Draw a cloud shape"""
-    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=0, width=3)
-    draw.ellipse([cx-w//3, cy-h, cx+w//3, cy], outline=0, width=3)
-    draw.ellipse([cx+w//6, cy-h*2//3, cx+w//2+10, cy+h//6], outline=0, width=3)
+def draw_cloud_shape(draw, cx, cy, w=60, h=28):
+    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], outline=0, width=2)
+    draw.ellipse([cx-w//4, cy-h, cx+w//4, cy+4], outline=0, width=2)
+    draw.ellipse([cx+w//8, cy-h*2//3, cx+w//2+8, cy+h//4], outline=0, width=2)
 
 def draw_sun_cloud(draw, cx, cy):
-    draw_sun(draw, cx-20, cy-15, r=20)
-    draw_cloud(draw, cx+15, cy+10, w=55, h=28)
+    draw_sun(draw, cx-18, cy-12, r=16)
+    draw_cloud_shape(draw, cx+12, cy+8, w=50, h=24)
+
+def draw_cloud(draw, cx, cy):
+    draw_cloud_shape(draw, cx, cy, w=60, h=28)
 
 def draw_cloud_rain(draw, cx, cy):
-    draw_cloud(draw, cx, cy-10, w=65, h=32)
-    import math
-    for i, offset in enumerate([-20, -5, 10, 25]):
-        x = cx + offset
-        draw.line([x, cy+20, x-6, cy+38], fill=0, width=2)
+    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
+    for i, offset in enumerate([-18, -5, 8, 21]):
+        draw.line([cx+offset, cy+16, cx+offset-5, cy+30], fill=0, width=2)
 
 def draw_cloud_snow(draw, cx, cy):
-    draw_cloud(draw, cx, cy-10, w=65, h=32)
-    for offset in [-20, -5, 10, 25]:
-        x = cx + offset
-        y = cy + 30
+    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
+    for offset in [-18, -5, 8, 21]:
+        x, y = cx+offset, cy+24
         draw.ellipse([x-3, y-3, x+3, y+3], fill=0)
 
 def draw_thunder(draw, cx, cy):
-    draw_cloud(draw, cx, cy-10, w=65, h=32)
-    pts = [(cx+5, cy+15), (cx-5, cy+30), (cx+3, cy+30), (cx-8, cy+48)]
+    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
+    pts = [(cx+5, cy+12), (cx-4, cy+26), (cx+3, cy+26), (cx-7, cy+42)]
     draw.line(pts, fill=0, width=3)
 
 ICON_FUNCS = {
-    "sun": draw_sun,
-    "sun_cloud": draw_sun_cloud,
-    "cloud": draw_cloud,
-    "cloud_rain": draw_cloud_rain,
-    "cloud_snow": draw_cloud_snow,
-    "thunder": draw_thunder,
+    "sun": draw_sun, "sun_cloud": draw_sun_cloud, "cloud": draw_cloud,
+    "cloud_rain": draw_cloud_rain, "cloud_snow": draw_cloud_snow, "thunder": draw_thunder,
 }
+
+# ── Draw analog clock ────────────────────────────────
+def draw_analog_clock(draw, cx, cy, r, h24, m):
+    # Face
+    draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=0, width=3)
+    
+    # Hour marks
+    for i in range(12):
+        angle = math.radians(i * 30 - 90)
+        if i % 3 == 0:
+            x1 = cx + (r-4) * math.cos(angle)
+            y1 = cy + (r-4) * math.sin(angle)
+            x2 = cx + (r-12) * math.cos(angle)
+            y2 = cy + (r-12) * math.sin(angle)
+            draw.line([x1, y1, x2, y2], fill=0, width=3)
+        else:
+            x1 = cx + (r-4) * math.cos(angle)
+            y1 = cy + (r-4) * math.sin(angle)
+            x2 = cx + (r-9) * math.cos(angle)
+            y2 = cy + (r-9) * math.sin(angle)
+            draw.line([x1, y1, x2, y2], fill=0, width=2)
+
+    # Hour hand
+    h12 = h24 % 12
+    hour_angle = math.radians((h12 + m/60) * 30 - 90)
+    hx = cx + (r * 0.55) * math.cos(hour_angle)
+    hy = cy + (r * 0.55) * math.sin(hour_angle)
+    draw.line([cx, cy, hx, hy], fill=0, width=4)
+
+    # Minute hand
+    min_angle = math.radians(m * 6 - 90)
+    mx2 = cx + (r * 0.75) * math.cos(min_angle)
+    my2 = cy + (r * 0.75) * math.sin(min_angle)
+    draw.line([cx, cy, mx2, my2], fill=0, width=2)
+
+    # Center dot
+    draw.ellipse([cx-4, cy-4, cx+4, cy+4], fill=0)
 
 # ── Font ──────────────────────────────────────────────
 FONT_PATH = "/tmp/NotoSerifHebrew-Bold.ttf"
@@ -203,7 +214,7 @@ def get_israel_time():
     utc = datetime.datetime.utcnow()
     return utc + datetime.timedelta(hours=3 if 3 <= utc.month <= 10 else 2)
 
-# ── Main image generation ─────────────────────────────
+# ── Main image ────────────────────────────────────────
 def generate_clock_image():
     now = get_israel_time()
     h24, m = now.hour, now.minute
@@ -217,7 +228,7 @@ def generate_clock_image():
     draw.rectangle([PAD1, PAD1, W-PAD1, H-PAD1], outline=0, width=3)
     draw.rectangle([PAD2, PAD2, W-PAD2, H-PAD2], outline=0, width=1)
 
-    # Time
+    # Time text
     period_words = {"בַּבֹּקֶר","בַּצָּהֳרַיִם","בָּעֶרֶב","בַּלַּיְלָה","לִפְנוֹת בֹּקֶר"}
     lines = get_time_lines(h24, m)
     time_lines = [l for l in lines if l not in period_words]
@@ -225,18 +236,15 @@ def generate_clock_image():
 
     font_large  = get_font(88)
     font_medium = get_font(50)
-    font_small  = get_font(28)
-    font_temp   = get_font(42)
+    font_small  = get_font(30)
 
     n = len(time_lines)
     line_h = 100
     total_h = n * line_h
-    # Center time in upper 3/4 of screen
     start_y = (H * 3 // 4 - total_h) // 2 + 30
 
     for i, line in enumerate(time_lines):
         draw.text((W//2, start_y + i*line_h), line, font=font_large, fill=0, anchor="mm")
-
     if period_line:
         draw.text((W//2, start_y + n*line_h + 10), period_line, font=font_medium, fill=0, anchor="mm")
 
@@ -244,27 +252,35 @@ def generate_clock_image():
     sep_y = H - 105
     draw.line([(PAD2+8, sep_y), (W-PAD2-8, sep_y)], fill=0, width=1)
 
-    # Weather section
+    # Bottom bar height = 105px, center = H - 52
+    bar_cy = H - 52
+
+    # LEFT: analog clock
+    clock_cx = PAD2 + 50
+    clock_r  = 38
+    draw_analog_clock(draw, clock_cx, bar_cy, clock_r, h24, m)
+
+    # Divider
+    div_x = PAD2 + 105
+    draw.line([(div_x, H - 95), (div_x, H - 12)], fill=180, width=1)
+
+    # RIGHT: weather icon + temp + desc
     weather = get_weather()
     if weather:
         code = weather["code"]
         temp = weather["temp"]
         desc, icon_key = WMO_CODES.get(code, ("לא ידוע", "cloud"))
 
-        # Draw icon on the left
-        icon_cx = PAD2 + 70
-        icon_cy = H - 55
+        # Weather icon on the right side
+        icon_cx = W - PAD2 - 55
+        icon_cy = bar_cy
         icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
         icon_func(draw, icon_cx, icon_cy)
 
-        # Temperature
-        draw.text((PAD2 + 155, H - 65), f"{temp}°", font=font_temp, fill=0, anchor="lm")
-
-        # Description
-        draw.text((PAD2 + 155, H - 32), desc, font=font_small, fill=0, anchor="lm")
-
-        # City name on right
-        draw.text((W - PAD2 - 20, H - 48), "תל אביב", font=font_small, fill=100, anchor="rm")
+        # Temperature to the left of icon
+        temp_str = f"{temp}C"  # avoid ° symbol issues
+        draw.text((W - PAD2 - 115, bar_cy - 18), temp_str, font=font_large.__class__ and get_font(40), fill=0, anchor="rm")
+        draw.text((W - PAD2 - 115, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
