@@ -106,14 +106,27 @@ def draw_sun(draw, cx, cy, r=22):
         draw.line([x1, y1, x2, y2], fill=0, width=2)
 
 def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    # Draw filled white ellipses first, then outline on top
-    draw.ellipse([cx-w//2, cy-h//2, cx+w//2, cy+h//2], fill=255, outline=0, width=2)
-    draw.ellipse([cx-w//4, cy-h, cx+w//4, cy+4], fill=255, outline=0, width=2)
-    draw.ellipse([cx+w//8, cy-h*2//3, cx+w//2+8, cy+h//4], fill=255, outline=0, width=2)
-    # Cover internal lines with white fill
-    draw.rectangle([cx-w//2+2, cy-h//2+2, cx+w//2-2, cy+h//2-2], fill=255, outline=None)
-    draw.rectangle([cx-w//4+2, cy-h+2, cx+w//4-2, cy+4-2], fill=255, outline=None)
-    draw.rectangle([cx+w//8+2, cy-h*2//3+2, cx+w//2+6, cy+h//4-2], fill=255, outline=None)
+    # Draw a proper cloud using polygon points
+    import math
+    # Build cloud outline as a series of arc segments
+    pts = []
+    # Bottom arc (main body)
+    for a in range(180, 361, 10):
+        r = w // 2
+        pts.append((cx + r * math.cos(math.radians(a)), cy + (h//2) * math.sin(math.radians(a))))
+    # Right bump
+    rcx, rcy, rr = cx + w//4, cy - h//4, h//2
+    for a in range(0, 181, 10):
+        pts.append((rcx + rr * math.cos(math.radians(a)), rcy + rr * math.sin(math.radians(a))))
+    # Top bump
+    tcx, tcy, tr = cx - w//8, cy - h*2//3, h//2
+    for a in range(0, 181, 10):
+        pts.append((tcx + tr * math.cos(math.radians(a)), tcy + tr * math.sin(math.radians(a))))
+    # Left bump  
+    lcx, lcy, lr = cx - w//3, cy - h//4, h//3
+    for a in range(0, 181, 10):
+        pts.append((lcx + lr * math.cos(math.radians(a)), lcy + lr * math.sin(math.radians(a))))
+    draw.polygon(pts, fill=255, outline=0)
 
 def draw_sun_cloud(draw, cx, cy):
     draw_sun(draw, cx-18, cy-12, r=16)
@@ -182,7 +195,7 @@ def draw_analog_clock(draw, cx, cy, r, h24, m):
 
 # ── Font ──────────────────────────────────────────────
 FONT_AVAILABLE = False
-BUNDLED_FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "font.ttf")
+BUNDLED_FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "NotoSansHebrew-Bold.ttf")
 
 def download_font():
     global FONT_AVAILABLE
