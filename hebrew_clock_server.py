@@ -263,38 +263,26 @@ def generate_clock_image():
     div_x = PAD2 + 105
     draw.line([(div_x, H - 95), (div_x, H - 12)], fill=180, width=1)
 
-    # RIGHT: weather icon + temp + desc
+    # RIGHT: [icon] [temp°] [desc] — nicely spaced
     weather = get_weather()
     if weather:
         code = weather["code"]
         temp = weather["temp"]
         desc, icon_key = WMO_CODES.get(code, ("לא ידוע", "cloud"))
 
-        # Weather icon on the right side
-        icon_cx = W - PAD2 - 55
-        icon_cy = bar_cy
+        font_num = get_font(38)
+
+        # Icon on far right
+        icon_cx = W - PAD2 - 38
+        icon_cy = bar_cy - 5
         icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
         icon_func(draw, icon_cx, icon_cy)
 
-        # Temperature to the left of icon
-        # Hebrew number words for temperature
-        def temp_to_hebrew(t):
-            tens = {2:"עשרים", 3:"שלושים", 4:"ארבעים"}
-            ones = {1:"אחת", 2:"שתיים", 3:"שלוש", 4:"ארבע", 5:"חמש",
-                    6:"שש", 7:"שבע", 8:"שמונה", 9:"תשע"}
-            if t <= 0: return "קר"
-            if t < 10: return ones.get(t, str(t))
-            if t == 10: return "עשר"
-            if t == 20: return "עשרים"
-            if t == 30: return "שלושים"
-            ten = (t // 10) * 10
-            one = t % 10
-            if one == 0: return tens.get(t//10, str(t))
-            return tens.get(ten//10, "") + " ו" + ones.get(one, str(one))
+        # Temperature to left of icon
+        draw.text((W - PAD2 - 85, bar_cy - 8), f"{temp}°", font=font_num, fill=0, anchor="mm")
 
-        font_num = get_font(38)
-        draw.text((W - PAD2 - 70, bar_cy - 18), f"{temp}°", font=font_num, fill=0, anchor="rm")
-        draw.text((W - PAD2 - 70, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
+        # Description below temperature
+        draw.text((W - PAD2 - 85, bar_cy + 22), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
