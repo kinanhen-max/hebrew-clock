@@ -106,27 +106,21 @@ def draw_sun(draw, cx, cy, r=22):
         draw.line([x1, y1, x2, y2], fill=0, width=2)
 
 def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    # Draw a proper cloud using polygon points
-    import math
-    # Build cloud outline as a series of arc segments
-    pts = []
-    # Bottom arc (main body)
-    for a in range(180, 361, 10):
-        r = w // 2
-        pts.append((cx + r * math.cos(math.radians(a)), cy + (h//2) * math.sin(math.radians(a))))
-    # Right bump
-    rcx, rcy, rr = cx + w//4, cy - h//4, h//2
-    for a in range(0, 181, 10):
-        pts.append((rcx + rr * math.cos(math.radians(a)), rcy + rr * math.sin(math.radians(a))))
-    # Top bump
-    tcx, tcy, tr = cx - w//8, cy - h*2//3, h//2
-    for a in range(0, 181, 10):
-        pts.append((tcx + tr * math.cos(math.radians(a)), tcy + tr * math.sin(math.radians(a))))
-    # Left bump  
-    lcx, lcy, lr = cx - w//3, cy - h//4, h//3
-    for a in range(0, 181, 10):
-        pts.append((lcx + lr * math.cos(math.radians(a)), lcy + lr * math.sin(math.radians(a))))
-    draw.polygon(pts, fill=255, outline=0)
+    # Simple clean cloud: 3 overlapping filled circles + white rectangle base
+    r1 = h // 2 + 2      # main body
+    r2 = int(h * 0.55)   # left top bump
+    r3 = int(h * 0.45)   # right top bump
+    # Fill circles white first
+    draw.ellipse([cx-r1, cy-r1, cx+r1, cy+r1], fill=255)
+    draw.ellipse([cx-w//3-r2, cy-r2//2-r2, cx-w//3+r2, cy-r2//2+r2], fill=255)
+    draw.ellipse([cx+w//5-r3, cy-r3//3-r3, cx+w//5+r3, cy-r3//3+r3], fill=255)
+    # Draw outlines
+    draw.ellipse([cx-r1, cy-r1, cx+r1, cy+r1], outline=0, width=2)
+    draw.ellipse([cx-w//3-r2, cy-r2//2-r2, cx-w//3+r2, cy-r2//2+r2], outline=0, width=2)
+    draw.ellipse([cx+w//5-r3, cy-r3//3-r3, cx+w//5+r3, cy-r3//3+r3], outline=0, width=2)
+    # White fill to hide internal overlap lines
+    draw.rectangle([cx-r1+2, cy-2, cx+r1-2, cy+r1-2], fill=255, outline=None)
+    draw.rectangle([cx-w//3-r2+4, cy-r2//2, cx+w//5+r3-4, cy+4], fill=255, outline=None)
 
 def draw_sun_cloud(draw, cx, cy):
     draw_sun(draw, cx-18, cy-12, r=16)
@@ -299,7 +293,7 @@ def generate_clock_image():
             return tens.get(ten//10, "") + " ו" + ones.get(one, str(one))
 
         font_num = get_font(38)
-        draw.text((W - PAD2 - 70, bar_cy - 18), f"{temp}", font=font_num, fill=0, anchor="rm")
+        draw.text((W - PAD2 - 70, bar_cy - 18), f"{temp}°", font=font_num, fill=0, anchor="rm")
         draw.text((W - PAD2 - 70, bar_cy + 14), desc, font=font_small, fill=0, anchor="rm")
 
     buf = io.BytesIO()
