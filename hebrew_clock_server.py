@@ -269,11 +269,11 @@ def generate_clock_image():
 
     # Divider left (after analog clock)
     div_x = PAD2 + 105
-    draw.line([(div_x, H - 95), (div_x, H - 12)], fill=180, width=1)
+    draw.line([(div_x, H - 92), (div_x, H - 15)], fill=0, width=1)
 
     # Divider right (before weather)
-    div_x2 = W - PAD2 - 155
-    draw.line([(div_x2, H - 95), (div_x2, H - 12)], fill=180, width=1)
+    div_x2 = W - PAD2 - 175
+    draw.line([(div_x2, H - 92), (div_x2, H - 15)], fill=0, width=1)
 
     # MIDDLE: day name + date
     MONTHS_HE = [
@@ -287,7 +287,7 @@ def generate_clock_image():
     ]
     day_name = DAYS_HE[now.weekday()]
     date_str = f"{now.day} {MONTHS_HE[now.month - 1]}"
-    mid_x = (div_x + div_x2) // 2
+    mid_x = (div_x + (W - PAD2 - 175)) // 2
     draw.text((mid_x, bar_cy - 14), day_name, font=font_small, fill=0, anchor="mm")
     draw.text((mid_x, bar_cy + 14), date_str, font=font_small, fill=0, anchor="mm")
 
@@ -300,17 +300,18 @@ def generate_clock_image():
 
         font_num = get_font(40)
 
-        # RIGHT: icon on far right, temp to its left with spacing
-        icon_cx = W - PAD2 - 30
-        icon_cy = bar_cy - 8
+        # RIGHT section: temp top, desc bottom, icon far right
+        # Icon on far right, centered
+        icon_cx = W - PAD2 - 28
+        icon_cy = bar_cy - 5
         icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
         icon_func(draw, icon_cx, icon_cy)
 
-        # Temperature — with good spacing from icon
-        draw.text((W - PAD2 - 90, bar_cy - 12), f"{temp}°", font=font_num, fill=0, anchor="rm")
+        # Temp above, left of icon
+        draw.text((W - PAD2 - 80, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
 
-        # Description below temp
-        draw.text((W - PAD2 - 55, bar_cy + 16), desc, font=font_small, fill=0, anchor="rm")
+        # Desc below temp
+        draw.text((W - PAD2 - 80, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
