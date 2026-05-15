@@ -262,8 +262,9 @@ def generate_clock_image():
     # Bottom bar height = 105px, center = H - 52
     bar_cy = H - 52
 
-    # LEFT: analog clock
-    clock_cx = PAD2 + 50
+    # LEFT: analog clock - centered in left third
+    left_section_center = (PAD2 + 8 + div_x) // 2
+    clock_cx = left_section_center
     clock_r  = 38
     draw_analog_clock(draw, clock_cx, bar_cy, clock_r, h24, m)
 
@@ -301,19 +302,10 @@ def generate_clock_image():
 
         font_num = get_font(40)
 
-        # RIGHT section: temp top, desc bottom, icon far right
-        # Icon on far right, centered
-        icon_cx = (div_x2 + W - PAD2 - 8) // 2 + 35
-        icon_cy = bar_cy - 5
-        icon_func = ICON_FUNCS.get(icon_key, draw_cloud)
-        icon_func(draw, icon_cx, icon_cy)
-
-        # Temp above, left of icon
-        wx = (div_x2 + W - PAD2 - 8) // 2 - 20
-        draw.text((wx, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
-
-        # Desc below temp
-        draw.text((wx, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
+        # RIGHT section: centered, temp on top, desc below, NO overlapping icon
+        right_cx = (div_x2 + W - PAD2 - 8) // 2
+        draw.text((right_cx, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
+        draw.text((right_cx, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
