@@ -76,12 +76,15 @@ WMO_CODES = {
     95: ("סוּפַת רְעָמִים", "thunder"), 96: ("סוּפַת רְעָמִים", "thunder"), 99: ("סוּפַת רְעָמִים", "thunder"),
 }
 
-_weather_cache = {"data": None, "time": None}
+_weather_cache = {"data": None, "time": None, "last_fail": None}
 
 def get_weather():
     global _weather_cache
     now = datetime.datetime.utcnow()
-    if _weather_cache["time"] and (now - _weather_cache["time"]).seconds < 900:
+    if _weather_cache["time"] and (now - _weather_cache["time"]).total_seconds() < 1800:
+        return _weather_cache["data"]
+    # Don't retry too fast after a failure
+    if _weather_cache["last_fail"] and (now - _weather_cache["last_fail"]).total_seconds() < 300:
         return _weather_cache["data"]
     try:
         url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&timezone=Asia/Jerusalem&forecast_days=1"
@@ -94,7 +97,8 @@ def get_weather():
             return result
     except Exception as e:
         print(f"Weather error: {e}", file=sys.stderr)
-        return None
+        _weather_cache["last_fail"] = datetime.datetime.utcnow()
+        return _weather_cache["data"]
 
 # ── Draw weather icons ────────────────────────────────
 def draw_sun(draw, cx, cy, r=22):
