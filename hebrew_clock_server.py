@@ -257,8 +257,8 @@ def generate_night_image():
     draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
     draw.ellipse([mx-mr+18, my-mr-10, mx+mr+18, my-mr-10+mr*2], fill=0)
 
-    font_large  = get_font(106)
-    font_medium = get_font(60)
+    font_large  = get_font(88)
+    font_medium = get_font(52)
     font_small  = get_font(32)
 
     # Main text - white on black
@@ -320,25 +320,25 @@ def generate_clock_image():
     time_lines = [l for l in lines if l not in period_words]
     period_line = next((l for l in lines if l in period_words), "")
 
-    font_large  = get_font(106)
-    font_medium = get_font(60)
-    font_small  = get_font(36)
+    font_large  = get_font(88)
+    font_medium = get_font(52)
+    font_small  = get_font(30)
 
     # ── Layout B: small clock top-center, big text below ──
     # Analog clock top center (small)
     clock_cx = W // 2
-    clock_cy = PAD2 + 20 + 45  # small clock at top
-    clock_r  = 45
+    clock_cy = PAD2 + 55
+    clock_r  = 40
     draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
 
     # Time text below clock — 20% bigger fonts
-    text_start_y = clock_cy + clock_r + 20
+    text_start_y = clock_cy + clock_r + 15
     text_area_h = H - 110 - text_start_y
 
     n = len(time_lines)
-    line_h = 108
+    line_h = 95
     total_h = n * line_h
-    ty = text_start_y + (text_area_h - total_h) // 2 + 50
+    ty = text_start_y + (text_area_h - total_h) // 2 + 10
 
     for i, line in enumerate(time_lines):
         draw.text((W//2, ty + i*line_h), line, font=font_large, fill=0, anchor="mm")
