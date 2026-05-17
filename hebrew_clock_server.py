@@ -327,8 +327,8 @@ def generate_clock_image():
     # ── Layout B: small clock top-center, big text below ──
     # Analog clock top center (small)
     clock_cx = W // 2
-    clock_cy = PAD2 + 55
-    clock_r  = 40
+    clock_cy = PAD2 + 65
+    clock_r  = 55
     draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
 
     # Time text below clock — 20% bigger fonts
@@ -370,12 +370,10 @@ def generate_clock_image():
     ]
     day_name = DAYS_HE[now.weekday()]
     date_str = f"{now.day} {MONTHS_HE[now.month - 1]}"
-    mid_x = (div_x + div_x2) // 2
-    draw.text((mid_x, bar_cy - 14), day_name, font=font_small, fill=0, anchor="mm")
-    draw.text((mid_x, bar_cy + 14), date_str, font=font_small, fill=0, anchor="mm")
-
-    # Left section: empty (was clock, now clock moved to top)
-    draw.text(((bar_left + div_x) // 2, bar_cy), "—", font=font_small, fill=180, anchor="mm")
+    # Date on LEFT section
+    left_cx = (bar_left + div_x) // 2
+    draw.text((left_cx, bar_cy - 14), day_name, font=font_small, fill=0, anchor="mm")
+    draw.text((left_cx, bar_cy + 14), date_str, font=font_small, fill=0, anchor="mm")
 
     # RIGHT: weather
     weather = get_weather()
