@@ -255,7 +255,7 @@ def generate_night_image():
 
     # Small stars around text
     for sx, sy in [(150, 280), (620, 320), (100, 380), (680, 260)]:
-        draw.text((sx, sy), "✦", font=font_small, fill=180, anchor="mm")
+        draw.ellipse([sx-3, sy-3, sx+3, sy+3], fill=180)
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -269,10 +269,14 @@ def generate_quiet_image():
     PAD1, PAD2 = 8, 16
     draw.rectangle([PAD1, PAD1, W-PAD1, H-PAD1], outline=0, width=3)
     draw.rectangle([PAD2, PAD2, W-PAD2, H-PAD2], outline=0, width=1)
-    font_large = get_font(80)
-    font_small = get_font(40)
-    draw.text((W//2, H//2 - 45), "לא להעיר אף אחד!", font=font_large, fill=0, anchor="mm")
-    draw.text((W//2, H//2 + 45), "😴", font=font_small, fill=0, anchor="mm")
+    font_large = get_font(72)
+    font_medium = get_font(55)
+    font_small = get_font(38)
+    draw.text((W//2, H//2 - 50), "לֹא לְהָעִיר אַף אֶחָד!", font=font_large, fill=0, anchor="mm")
+    # Draw Zzz instead of emoji
+    draw.text((W//2 - 60, H//2 + 30), "z", font=font_large, fill=0, anchor="mm")
+    draw.text((W//2, H//2 + 20), "z", font=font_medium, fill=0, anchor="mm")
+    draw.text((W//2 + 50, H//2 + 10), "z", font=font_small, fill=0, anchor="mm")
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)
@@ -362,7 +366,8 @@ def generate_clock_image():
     if weather:
         code = weather["code"]
         temp = weather["temp"]
-        desc, icon_key = WMO_CODES.get(code, ("לא ידוע", "cloud"))
+        desc = weather.get("desc", "לא ידוע")
+        icon_key = weather.get("icon_key", "cloud")
 
         font_num = get_font(40)
 
