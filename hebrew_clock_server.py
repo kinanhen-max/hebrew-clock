@@ -84,7 +84,7 @@ def get_weather():
     if _weather_cache["time"] and (now - _weather_cache["time"]).total_seconds() < 1800:
         return _weather_cache["data"]
     # Don't retry too fast after a failure
-    if _weather_cache["last_fail"] and (now - _weather_cache["last_fail"]).total_seconds() < 300:
+    if _weather_cache.get("last_fail") and (now - _weather_cache["last_fail"]).total_seconds() < 300:
         return _weather_cache["data"]
     try:
         url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&timezone=Asia/Jerusalem&forecast_days=1"
