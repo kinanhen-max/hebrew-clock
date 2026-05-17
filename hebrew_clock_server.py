@@ -81,24 +81,36 @@ _weather_cache = {"data": None, "time": None, "last_fail": None}
 def get_weather():
     global _weather_cache
     now = datetime.datetime.utcnow()
-    if _weather_cache["time"] and (now - _weather_cache["time"]).total_seconds() < 1800:
-        return _weather_cache["data"]
-    # Don't retry too fast after a failure
-    if _weather_cache.get("last_fail") and (now - _weather_cache["last_fail"]).total_seconds() < 300:
-        return _weather_cache["data"]
+    if _weather_cache.get("time") and (now - _weather_cache["time"]).total_seconds() < 1800:
+        return _weather_cache.get("data")
+    if _weather_cache.get("last_fail") and (now - _weather_cache["last_fail"]).total_seconds() < 600:
+        return _weather_cache.get("data")
     try:
-        url = "https://api.open-meteo.com/v1/forecast?latitude=32.07&longitude=34.79&current_weather=true&timezone=Asia/Jerusalem&forecast_days=1"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        url = "https://wttr.in/Tel+Aviv?format=j1"
+        req = urllib.request.Request(url, headers={"User-Agent": "curl/7.68.0"})
         with urllib.request.urlopen(req, timeout=10) as r:
             data = json.loads(r.read())
-            cw = data["current_weather"]
-            result = {"temp": round(cw["temperature"]), "code": cw["weathercode"]}
-            _weather_cache = {"data": result, "time": now}
+            cc = data["current_condition"][0]
+            temp = round(float(cc["temp_C"]))
+            code = int(cc["weatherCode"])
+            if code == 113: icon = "sun"
+            elif code == 116: icon = "sun_cloud"
+            elif code in [119, 122]: icon = "cloud"
+            elif code in [176, 293, 296, 299, 302, 305, 308, 353, 356, 359]: icon = "cloud_rain"
+            elif code in [179, 182, 185, 227, 230, 323, 326, 329, 332, 335, 338, 368, 371, 374, 377]: icon = "cloud_snow"
+            elif code in [200, 386, 389, 392, 395]: icon = "thunder"
+            else: icon = "cloud"
+            desc_map = {"sun": "שָׁמְשִׁי", "sun_cloud": "מְעֻנָּן חֶלְקִי",
+                        "cloud": "מְעֻנָּן", "cloud_rain": "גֶּשֶׁם",
+                        "cloud_snow": "שֶׁלֶג", "thunder": "סוּפָה"}
+            result = {"temp": temp, "icon_key": icon, "desc": desc_map.get(icon, "מְעֻנָּן")}
+            _weather_cache = {"data": result, "time": now, "last_fail": None}
+            print(f"Weather OK: {temp}C {icon}", flush=True)
             return result
     except Exception as e:
         print(f"Weather error: {e}", file=sys.stderr)
         _weather_cache["last_fail"] = datetime.datetime.utcnow()
-        return _weather_cache["data"]
+        return _weather_cache.get("data")
 
 # ── Draw weather icons ────────────────────────────────
 def draw_sun(draw, cx, cy, r=22):
@@ -364,7 +376,6 @@ def generate_clock_image():
     # RIGHT side weather block
     weather = get_weather()
     if weather:
-        code = weather["code"]
         temp = weather["temp"]
         desc = weather.get("desc", "לא ידוע")
         icon_key = weather.get("icon_key", "cloud")
