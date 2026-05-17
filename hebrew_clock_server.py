@@ -257,8 +257,8 @@ def generate_night_image():
     draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
     draw.ellipse([mx-mr+18, my-mr-10, mx+mr+18, my-mr-10+mr*2], fill=0)
 
-    font_large  = get_font(88)
-    font_medium = get_font(50)
+    font_large  = get_font(106)
+    font_medium = get_font(60)
     font_small  = get_font(32)
 
     # Main text - white on black
@@ -320,44 +320,45 @@ def generate_clock_image():
     time_lines = [l for l in lines if l not in period_words]
     period_line = next((l for l in lines if l in period_words), "")
 
-    font_large  = get_font(88)
-    font_medium = get_font(50)
-    font_small  = get_font(30)
+    font_large  = get_font(106)
+    font_medium = get_font(60)
+    font_small  = get_font(36)
+
+    # ── Layout B: small clock top-center, big text below ──
+    # Analog clock top center (small)
+    clock_cx = W // 2
+    clock_cy = PAD2 + 20 + 45  # small clock at top
+    clock_r  = 45
+    draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
+
+    # Time text below clock — 20% bigger fonts
+    text_start_y = clock_cy + clock_r + 20
+    text_area_h = H - 110 - text_start_y
 
     n = len(time_lines)
-    line_h = 100
+    line_h = 108
     total_h = n * line_h
-    start_y = (H * 3 // 4 - total_h) // 2 + 30
+    ty = text_start_y + (text_area_h - total_h) // 2 + 50
 
     for i, line in enumerate(time_lines):
-        draw.text((W//2, start_y + i*line_h), line, font=font_large, fill=0, anchor="mm")
+        draw.text((W//2, ty + i*line_h), line, font=font_large, fill=0, anchor="mm")
     if period_line:
-        draw.text((W//2, start_y + n*line_h + 10), period_line, font=font_medium, fill=0, anchor="mm")
+        draw.text((W//2, ty + n*line_h + 8), period_line, font=font_medium, fill=0, anchor="mm")
 
-    # Bottom separator
+    # Bottom bar
     sep_y = H - 105
     draw.line([(PAD2+8, sep_y), (W-PAD2-8, sep_y)], fill=0, width=1)
-
-    # Bottom bar height = 105px, center = H - 52
     bar_cy = H - 52
 
-    # Split bottom bar into 3 equal sections — define FIRST
     bar_left = PAD2 + 8
     bar_right = W - PAD2 - 8
     bar_width = bar_right - bar_left
     div_x = bar_left + bar_width // 3
     div_x2 = bar_left + 2 * bar_width // 3
 
-    # LEFT: analog clock - centered in left third
-    clock_cx = (bar_left + div_x) // 2
-    clock_r  = 38
-    draw_analog_clock(draw, clock_cx, bar_cy, clock_r, h24, m)
-
-    # Divider lines
     draw.line([(div_x, H - 92), (div_x, H - 15)], fill=0, width=1)
     draw.line([(div_x2, H - 92), (div_x2, H - 15)], fill=0, width=1)
 
-    # MIDDLE: day name + date
     MONTHS_HE = [
         "בְּיָנוּאָר", "בְּפֶבְּרוּאָר", "בְּמָרְץ", "בְּאַפְּרִיל",
         "בְּמַאי", "בְּיוּנִי", "בְּיוּלִי", "בְּאוֹגוּסְט",
@@ -373,16 +374,16 @@ def generate_clock_image():
     draw.text((mid_x, bar_cy - 14), day_name, font=font_small, fill=0, anchor="mm")
     draw.text((mid_x, bar_cy + 14), date_str, font=font_small, fill=0, anchor="mm")
 
-    # RIGHT side weather block
+    # Left section: empty (was clock, now clock moved to top)
+    draw.text(((bar_left + div_x) // 2, bar_cy), "—", font=font_small, fill=180, anchor="mm")
+
+    # RIGHT: weather
     weather = get_weather()
     if weather:
         temp = weather["temp"]
         desc = weather.get("desc", "לא ידוע")
         icon_key = weather.get("icon_key", "cloud")
-
         font_num = get_font(40)
-
-        # RIGHT section: centered, temp on top, desc below, NO overlapping icon
         right_cx = (div_x2 + W - PAD2 - 8) // 2
         draw.text((right_cx, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
         draw.text((right_cx, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
