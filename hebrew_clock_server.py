@@ -226,9 +226,68 @@ def get_israel_time():
     return utc + datetime.timedelta(hours=3 if 3 <= utc.month <= 10 else 2)
 
 # ── Main image ────────────────────────────────────────
+def generate_night_image():
+    W, H = 800, 480
+    img = Image.new("L", (W, H), color=0)  # Black background
+    draw = ImageDraw.Draw(img)
+
+    # Stars
+    import random
+    random.seed(42)
+    for _ in range(80):
+        x = random.randint(20, W-20)
+        y = random.randint(20, H//2)
+        size = random.choice([1, 1, 1, 2, 2, 3])
+        draw.ellipse([x-size, y-size, x+size, y+size], fill=255)
+
+    # Moon (crescent) - top right
+    mx, my, mr = 650, 100, 60
+    draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
+    draw.ellipse([mx-mr+18, my-mr-10, mx+mr+18, my-mr-10+mr*2], fill=0)
+
+    font_large  = get_font(88)
+    font_medium = get_font(50)
+    font_small  = get_font(32)
+
+    # Main text - white on black
+    draw.text((W//2, H//2 - 40), "לְכוּ לִישׁוֹן!", font=font_large, fill=255, anchor="mm")
+    draw.text((W//2, H//2 + 55), "לַיְלָה טוֹב", font=font_medium, fill=200, anchor="mm")
+
+    # Small stars around text
+    for sx, sy in [(150, 280), (620, 320), (100, 380), (680, 260)]:
+        draw.text((sx, sy), "✦", font=font_small, fill=180, anchor="mm")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.read()
+
+def generate_quiet_image():
+    W, H = 800, 480
+    img = Image.new("L", (W, H), color=255)
+    draw = ImageDraw.Draw(img)
+    PAD1, PAD2 = 8, 16
+    draw.rectangle([PAD1, PAD1, W-PAD1, H-PAD1], outline=0, width=3)
+    draw.rectangle([PAD2, PAD2, W-PAD2, H-PAD2], outline=0, width=1)
+    font_large = get_font(80)
+    font_small = get_font(40)
+    draw.text((W//2, H//2 - 45), "לא להעיר אף אחד!", font=font_large, fill=0, anchor="mm")
+    draw.text((W//2, H//2 + 45), "😴", font=font_small, fill=0, anchor="mm")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf.read()
+
 def generate_clock_image():
     now = get_israel_time()
     h24, m = now.hour, now.minute
+
+    # Night mode: 21:00 - 06:00
+    if h24 >= 21 or h24 < 6:
+        return generate_night_image()
+    # Quiet mode: 06:00 - 07:30
+    if h24 == 6 or (h24 == 7 and m < 30):
+        return generate_quiet_image()
 
     W, H = 800, 480
     img = Image.new("L", (W, H), color=255)
