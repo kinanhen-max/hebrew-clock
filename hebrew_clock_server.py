@@ -270,35 +270,45 @@ def get_israel_time():
 # ── Main image ────────────────────────────────────────
 def generate_night_image():
     import random, os
-    from PIL import ImageOps
     W, H = 800, 480
     img = Image.new("L", (W, H), color=0)
     draw = ImageDraw.Draw(img)
 
+    # Stars
+    random.seed(42)
+    for _ in range(60):
+        x = random.randint(20, W-20)
+        y = random.randint(20, H-20)
+        size = random.choice([1, 1, 2, 2, 3])
+        draw.ellipse([x-size, y-size, x+size, y+size], fill=255)
+
+    # Moon (crescent) top left
+    mx, my, mr = 100, 90, 55
+    draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
+    draw.ellipse([mx-mr+16, my-mr-12, mx+mr+16, my-mr-12+mr*2], fill=0)
+
+    # Sleeping image - right side, white lines on black
     sleeping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleeping.png")
     if os.path.exists(sleeping_path):
         try:
             sleeping = Image.open(sleeping_path).convert("L")
-            sleeping = ImageOps.invert(sleeping)
-            sw, sh = 600, 340
-            sleeping = sleeping.resize((sw, sh), Image.LANCZOS)
-            sleeping = sleeping.point(lambda p: p if p > 80 else 0)
-            img.paste(sleeping, ((W - sw) // 2, (H - sh) // 2 + 30))
+            mask = sleeping.point(lambda p: 255 if p < 128 else 0)
+            white_lines = Image.new("L", sleeping.size, 255)
+            black_bg = Image.new("L", sleeping.size, 0)
+            result = Image.composite(white_lines, black_bg, mask)
+            sw, sh = 380, 280
+            result = result.resize((sw, sh), Image.LANCZOS)
+            mask_r = mask.resize((sw, sh), Image.LANCZOS)
+            img.paste(result, (W - sw - 20, (H - sh) // 2), mask=mask_r)
         except Exception as e:
             print(f"Sleeping image error: {e}")
 
-    random.seed(42)
-    for _ in range(30):
-        x = random.randint(20, W-20)
-        y = random.randint(8, 55)
-        size = random.choice([1, 1, 2, 2, 3])
-        draw.ellipse([x-size, y-size, x+size, y+size], fill=255)
-
-    font_large  = get_font(62)
-    font_medium = get_font(40)
-
-    draw.text((W//2, 35), "זְמַן לִישׁוֹן", font=font_large, fill=255, anchor="mm")
-    draw.text((W//2, H - 30), "לַיְלָה טוֹב", font=font_medium, fill=200, anchor="mm")
+    # Text on left side
+    font_large  = get_font(72)
+    font_medium = get_font(44)
+    text_cx = (W - 380 - 40) // 2
+    draw.text((text_cx, H//2 - 30), "זְמַן לִישׁוֹן", font=font_large, fill=255, anchor="mm")
+    draw.text((text_cx, H//2 + 55), "לַיְלָה טוֹב", font=font_medium, fill=180, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
