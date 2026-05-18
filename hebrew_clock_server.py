@@ -269,35 +269,36 @@ def get_israel_time():
 
 # ── Main image ────────────────────────────────────────
 def generate_night_image():
+    import random, os
+    from PIL import ImageOps
     W, H = 800, 480
-    img = Image.new("L", (W, H), color=0)  # Black background
+    img = Image.new("L", (W, H), color=0)
     draw = ImageDraw.Draw(img)
 
-    # Stars
-    import random
+    sleeping_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sleeping.png")
+    if os.path.exists(sleeping_path):
+        try:
+            sleeping = Image.open(sleeping_path).convert("L")
+            sleeping = ImageOps.invert(sleeping)
+            sw, sh = 600, 340
+            sleeping = sleeping.resize((sw, sh), Image.LANCZOS)
+            sleeping = sleeping.point(lambda p: p if p > 80 else 0)
+            img.paste(sleeping, ((W - sw) // 2, (H - sh) // 2 + 30))
+        except Exception as e:
+            print(f"Sleeping image error: {e}")
+
     random.seed(42)
-    for _ in range(80):
+    for _ in range(30):
         x = random.randint(20, W-20)
-        y = random.randint(20, H//2)
-        size = random.choice([1, 1, 1, 2, 2, 3])
+        y = random.randint(8, 55)
+        size = random.choice([1, 1, 2, 2, 3])
         draw.ellipse([x-size, y-size, x+size, y+size], fill=255)
 
-    # Moon (crescent) - top right
-    mx, my, mr = 650, 100, 60
-    draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
-    draw.ellipse([mx-mr+18, my-mr-10, mx+mr+18, my-mr-10+mr*2], fill=0)
+    font_large  = get_font(62)
+    font_medium = get_font(40)
 
-    font_large  = get_font(100)
-    font_medium = get_font(58)
-    font_small  = get_font(32)
-
-    # Main text - white on black
-    draw.text((W//2, H//2 - 40), "לְכוּ לִישׁוֹן!", font=font_large, fill=255, anchor="mm")
-    draw.text((W//2, H//2 + 55), "לַיְלָה טוֹב", font=font_medium, fill=200, anchor="mm")
-
-    # Small stars around text
-    for sx, sy in [(150, 280), (620, 320), (100, 380), (680, 260)]:
-        draw.ellipse([sx-3, sy-3, sx+3, sy+3], fill=180)
+    draw.text((W//2, 35), "זְמַן לִישׁוֹן", font=font_large, fill=255, anchor="mm")
+    draw.text((W//2, H - 30), "לַיְלָה טוֹב", font=font_medium, fill=200, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
@@ -371,7 +372,17 @@ def generate_clock_image():
     ty = text_start_y + (text_area_h - total_h) // 2 + 10
 
     for i, line in enumerate(time_lines):
-        draw.text((W//2, ty + i*line_h), line, font=font_large, fill=0, anchor="mm")
+        # Auto-shrink font if text too wide
+        f = font_large
+        while True:
+            bbox = draw.textbbox((0,0), line, font=f)
+            if (bbox[2] - bbox[0]) < (W - 60):
+                break
+            current_size = f.size if hasattr(f, "size") else 100
+            if current_size <= 40:
+                break
+            f = get_font(current_size - 6)
+        draw.text((W//2, ty + i*line_h), line, font=f, fill=0, anchor="mm")
 
     # Bottom bar
     sep_y = H - 105
