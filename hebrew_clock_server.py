@@ -195,6 +195,14 @@ def draw_analog_clock(draw, cx, cy, r, h24, m):
             y2 = cy + (r-9) * math.sin(angle)
             draw.line([x1, y1, x2, y2], fill=0, width=2)
 
+    # Numbers: 12, 3, 6, 9
+    num_font = get_font(max(12, r // 4))
+    for num, angle_deg in [(12, -90), (3, 0), (6, 90), (9, 180)]:
+        angle = math.radians(angle_deg)
+        nx = cx + (r - 18) * math.cos(angle)
+        ny = cy + (r - 18) * math.sin(angle)
+        draw.text((nx, ny), str(num), font=num_font, fill=0, anchor="mm")
+
     # Hour hand
     h12 = h24 % 12
     hour_angle = math.radians((h12 + m/60) * 30 - 90)
@@ -327,8 +335,8 @@ def generate_clock_image():
     # ── Layout B: small clock top-center, big text below ──
     # Analog clock top center (small)
     clock_cx = W // 2
-    clock_cy = PAD2 + 65
-    clock_r  = 55
+    clock_cy = PAD2 + 70
+    clock_r  = 62
     draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
 
     # Time text below clock — 20% bigger fonts
@@ -342,8 +350,6 @@ def generate_clock_image():
 
     for i, line in enumerate(time_lines):
         draw.text((W//2, ty + i*line_h), line, font=font_large, fill=0, anchor="mm")
-    if period_line:
-        draw.text((W//2, ty + n*line_h + 8), period_line, font=font_medium, fill=0, anchor="mm")
 
     # Bottom bar
     sep_y = H - 105
@@ -374,6 +380,10 @@ def generate_clock_image():
     left_cx = (bar_left + div_x) // 2
     draw.text((left_cx, bar_cy - 14), day_name, font=font_small, fill=0, anchor="mm")
     draw.text((left_cx, bar_cy + 14), date_str, font=font_small, fill=0, anchor="mm")
+    # Period (בערב/בבוקר) in MIDDLE section
+    mid_x = (div_x + div_x2) // 2
+    if period_line:
+        draw.text((mid_x, bar_cy), period_line, font=font_small, fill=0, anchor="mm")
 
     # RIGHT: weather
     weather = get_weather()
