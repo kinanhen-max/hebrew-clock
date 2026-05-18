@@ -287,8 +287,8 @@ def generate_night_image():
     draw.ellipse([mx-mr, my-mr, mx+mr, my+mr], fill=255)
     draw.ellipse([mx-mr+18, my-mr-10, mx+mr+18, my-mr-10+mr*2], fill=0)
 
-    font_large  = get_font(88)
-    font_medium = get_font(52)
+    font_large  = get_font(100)
+    font_medium = get_font(58)
     font_small  = get_font(32)
 
     # Main text - white on black
@@ -350,15 +350,15 @@ def generate_clock_image():
     time_lines = [l for l in lines if l not in period_words]
     period_line = next((l for l in lines if l in period_words), "")
 
-    font_large  = get_font(88)
-    font_medium = get_font(52)
-    font_small  = get_font(30)
+    font_large  = get_font(100)
+    font_medium = get_font(58)
+    font_small  = get_font(34)
 
     # ── Layout B: small clock top-center, big text below ──
     # Analog clock top center (small)
     clock_cx = W // 2
-    clock_cy = PAD2 + 70
-    clock_r  = 62
+    clock_cy = PAD2 + 75
+    clock_r  = 68
     draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
 
     # Time text below clock — 20% bigger fonts
@@ -414,13 +414,18 @@ def generate_clock_image():
         desc = weather.get("desc", "לא ידוע")
         icon_key = weather.get("icon_key", "cloud")
         font_num = get_font(40)
-        right_cx = (div_x2 + W - PAD2 - 8) // 2
-        # Icon on right, temp + desc on left of icon
-        icon_x = right_cx + 28
+        # Right section boundaries
+        right_start = div_x2
+        right_end = W - PAD2 - 8
+        right_cx = (right_start + right_end) // 2
+        # Icon left side of right section
+        icon_x = right_start + (right_end - right_start) // 4
         icon_y = bar_cy
-        draw_weather_icon(draw, icon_x, icon_y, icon_key, size=36)
-        draw.text((right_cx - 18, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
-        draw.text((right_cx - 18, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
+        draw_weather_icon(draw, icon_x, icon_y, icon_key, size=34)
+        # Temp + desc right side
+        text_x = right_start + 3*(right_end - right_start) // 4
+        draw.text((text_x, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
+        draw.text((text_x, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
