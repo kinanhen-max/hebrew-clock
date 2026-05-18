@@ -113,65 +113,87 @@ def get_weather():
         return _weather_cache.get("data")
 
 # ── Draw weather icons ────────────────────────────────
-def draw_sun(draw, cx, cy, r=22):
-    draw.ellipse([cx-r, cy-r, cx+r, cy+r], outline=0, width=3)
-    for angle in range(0, 360, 45):
-        rad = math.radians(angle)
-        x1 = cx + (r+5) * math.cos(rad)
-        y1 = cy + (r+5) * math.sin(rad)
-        x2 = cx + (r+12) * math.cos(rad)
-        y2 = cy + (r+12) * math.sin(rad)
-        draw.line([x1, y1, x2, y2], fill=0, width=2)
+def draw_weather_icon(draw, cx, cy, icon_key, size=42):
+    """Draw clean weather icons. cx,cy = center. size = radius/scale."""
+    s = size
 
-def draw_cloud_shape(draw, cx, cy, w=60, h=28):
-    # Flat bottom, bumpy top cloud
-    # Step 1: fill all white
-    draw.rectangle([cx-w//2, cy-h//2, cx+w//2, cy+h//2+4], fill=255)
-    # Top bumps (white filled circles)
-    bumps = [
-        (cx - w//3, cy - h//4, h//2),     # left bump
-        (cx,        cy - h//2, h//2 + 3), # center bump (tallest)
-        (cx + w//3, cy - h//4, h//2 - 2), # right bump
-    ]
-    for bx, by, br in bumps:
-        draw.ellipse([bx-br, by-br, bx+br, by+br], fill=255)
-    # Step 2: draw outlines
-    for bx, by, br in bumps:
-        draw.ellipse([bx-br, by-br, bx+br, by+br], outline=0, width=2)
-    # Flat bottom line
-    draw.line([cx-w//2, cy+h//2+2, cx+w//2, cy+h//2+2], fill=0, width=2)
-    # Left and right sides
-    draw.line([cx-w//2, cy-2, cx-w//2, cy+h//2+2], fill=0, width=2)
-    draw.line([cx+w//2, cy-2, cx+w//2, cy+h//2+2], fill=0, width=2)
-    # Cover internal bump lines with white
-    draw.rectangle([cx-w//2+3, cy-h//4, cx+w//2-3, cy+h//2], fill=255)
+    def cloud(ox=0, oy=0, scale=1.0):
+        """Draw a proper cloud using polygon — no overlap lines."""
+        w, h = int(s*1.4*scale), int(s*0.7*scale)
+        pts = []
+        # Bottom flat part
+        for a in range(180, 361, 8):
+            pts.append((ox+cx + int(w/2 * math.cos(math.radians(a))),
+                        oy+cy + int(h/2 * math.sin(math.radians(a)))))
+        # Right bump
+        rb = int(h*0.6*scale)
+        for a in range(0, 181, 8):
+            pts.append((ox+cx + int(w*0.25) + int(rb * math.cos(math.radians(a))),
+                        oy+cy - int(h*0.2) + int(rb * math.sin(math.radians(a)))))
+        # Center bump (tallest)
+        cb = int(h*0.75*scale)
+        for a in range(0, 181, 8):
+            pts.append((ox+cx + int(cb * math.cos(math.radians(a))),
+                        oy+cy - int(h*0.3) + int(cb * math.sin(math.radians(a)))))
+        # Left bump
+        lb = int(h*0.55*scale)
+        for a in range(0, 181, 8):
+            pts.append((ox+cx - int(w*0.25) + int(lb * math.cos(math.radians(a))),
+                        oy+cy - int(h*0.1) + int(lb * math.sin(math.radians(a)))))
+        draw.polygon(pts, fill=255, outline=0)
 
-def draw_sun_cloud(draw, cx, cy):
-    draw_sun(draw, cx-18, cy-12, r=16)
-    draw_cloud_shape(draw, cx+12, cy+8, w=50, h=24)
+    if icon_key == "sun":
+        # Circle + 8 rays
+        r = s // 2
+        draw.ellipse([cx-r, cy-r, cx+r, cy+r], fill=255, outline=0, width=3)
+        for a in range(0, 360, 45):
+            rad = math.radians(a)
+            draw.line([cx+(r+4)*math.cos(rad), cy+(r+4)*math.sin(rad),
+                       cx+(r+13)*math.cos(rad), cy+(r+13)*math.sin(rad)], fill=0, width=3)
 
-def draw_cloud(draw, cx, cy):
-    draw_cloud_shape(draw, cx, cy, w=60, h=28)
+    elif icon_key == "sun_cloud":
+        # Small sun top-left, cloud bottom-right
+        sr = s // 3
+        scx, scy = cx - s//3, cy - s//4
+        draw.ellipse([scx-sr, scy-sr, scx+sr, scy+sr], fill=255, outline=0, width=2)
+        for a in range(0, 360, 60):
+            rad = math.radians(a)
+            draw.line([scx+(sr+3)*math.cos(rad), scy+(sr+3)*math.sin(rad),
+                       scx+(sr+9)*math.cos(rad), scy+(sr+9)*math.sin(rad)], fill=0, width=2)
+        cloud(s//5, s//5, 0.85)
 
-def draw_cloud_rain(draw, cx, cy):
-    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
-    for i, offset in enumerate([-18, -5, 8, 21]):
-        draw.line([cx+offset, cy+16, cx+offset-5, cy+30], fill=0, width=2)
+    elif icon_key == "cloud":
+        cloud()
 
-def draw_cloud_snow(draw, cx, cy):
-    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
-    for offset in [-18, -5, 8, 21]:
-        x, y = cx+offset, cy+24
-        draw.ellipse([x-3, y-3, x+3, y+3], fill=0)
+    elif icon_key == "cloud_rain":
+        cloud(0, -s//5, 0.9)
+        for i, ox in enumerate([-s//3, -s//8, s//8, s//3]):
+            draw.line([cx+ox, cy+s//4, cx+ox-4, cy+s//2+4], fill=0, width=2)
 
-def draw_thunder(draw, cx, cy):
-    draw_cloud_shape(draw, cx, cy-8, w=58, h=26)
-    pts = [(cx+5, cy+12), (cx-4, cy+26), (cx+3, cy+26), (cx-7, cy+42)]
-    draw.line(pts, fill=0, width=3)
+    elif icon_key == "cloud_snow":
+        cloud(0, -s//5, 0.9)
+        for ox in [-s//3, -s//8, s//8, s//3]:
+            x, y = cx+ox, cy+s//3
+            # Draw snowflake star
+            for a in [0, 60, 120]:
+                rad = math.radians(a)
+                draw.line([x-6*math.cos(rad), y-6*math.sin(rad),
+                           x+6*math.cos(rad), y+6*math.sin(rad)], fill=0, width=2)
+
+    elif icon_key == "thunder":
+        cloud(0, -s//4, 0.9)
+        # Lightning bolt
+        pts = [(cx+4, cy+s//6), (cx-6, cy+s//2),
+               (cx+2, cy+s//2), (cx-8, cy+s)]
+        draw.line(pts, fill=0, width=3)
 
 ICON_FUNCS = {
-    "sun": draw_sun, "sun_cloud": draw_sun_cloud, "cloud": draw_cloud,
-    "cloud_rain": draw_cloud_rain, "cloud_snow": draw_cloud_snow, "thunder": draw_thunder,
+    "sun": lambda d,x,y: draw_weather_icon(d,x,y,"sun"),
+    "sun_cloud": lambda d,x,y: draw_weather_icon(d,x,y,"sun_cloud"),
+    "cloud": lambda d,x,y: draw_weather_icon(d,x,y,"cloud"),
+    "cloud_rain": lambda d,x,y: draw_weather_icon(d,x,y,"cloud_rain"),
+    "cloud_snow": lambda d,x,y: draw_weather_icon(d,x,y,"cloud_snow"),
+    "thunder": lambda d,x,y: draw_weather_icon(d,x,y,"thunder"),
 }
 
 # ── Draw analog clock ────────────────────────────────
@@ -393,8 +415,12 @@ def generate_clock_image():
         icon_key = weather.get("icon_key", "cloud")
         font_num = get_font(40)
         right_cx = (div_x2 + W - PAD2 - 8) // 2
-        draw.text((right_cx, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
-        draw.text((right_cx, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
+        # Icon on right, temp + desc on left of icon
+        icon_x = right_cx + 28
+        icon_y = bar_cy
+        draw_weather_icon(draw, icon_x, icon_y, icon_key, size=36)
+        draw.text((right_cx - 18, bar_cy - 14), f"{temp}°", font=font_num, fill=0, anchor="mm")
+        draw.text((right_cx - 18, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
     img.save(buf, format="PNG")
