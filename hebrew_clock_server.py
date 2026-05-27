@@ -338,6 +338,7 @@ def generate_quiet_image():
 def generate_clock_image():
     now = get_israel_time()
     h24, m = now.hour, now.minute
+    real_m = m  # Keep real minutes for analog clock
 
     # Night mode: 21:00 - 06:00
     if h24 >= 21 or h24 < 6:
@@ -370,7 +371,7 @@ def generate_clock_image():
     clock_cx = W // 2
     clock_cy = PAD2 + 75
     clock_r  = 68
-    draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, m)
+    draw_analog_clock(draw, clock_cx, clock_cy, clock_r, h24, real_m)
 
     # Time text below clock — 20% bigger fonts
     text_start_y = clock_cy + clock_r + 15
