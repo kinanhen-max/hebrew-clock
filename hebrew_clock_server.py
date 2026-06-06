@@ -357,7 +357,7 @@ def generate_clock_image():
     draw.rectangle([PAD2, PAD2, W-PAD2, H-PAD2], outline=0, width=1)
 
     # Time text
-    period_words = {"בַּבֹּקֶר","בַּצָּהֳרַיִם","בָּעֶרֶב","בַּלַּיְלָה","לִפְנוֹת בֹּקֶר"}
+    period_words = {"בַּבֹּקֶר","בַּצָּהֳרַיִם","אַחַר הַצָּהֳרַיִם","בָּעֶרֶב","בַּלַּיְלָה","לִפְנוֹת בֹּקֶר"}
     lines = get_time_lines(h24, m)
     time_lines = [l for l in lines if l not in period_words]
     period_line = next((l for l in lines if l in period_words), "")
@@ -381,6 +381,10 @@ def generate_clock_image():
     line_h = 95
     total_h = n * line_h
     ty = text_start_y + (text_area_h - total_h) // 2 + 10
+    # Safety: never let text start above the clock bottom
+    min_ty = clock_cy + clock_r + 40
+    if ty < min_ty:
+        ty = min_ty
 
     for i, line in enumerate(time_lines):
         # Auto-shrink font if text too wide
