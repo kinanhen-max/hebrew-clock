@@ -2,9 +2,9 @@
 """
 Hebrew Word Clock + Weather + Analog Clock
 """
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from PIL import Image, ImageDraw, ImageFont
-import datetime, io, os, urllib.request, json, sys, math
+import datetime, io, os, urllib.request, json, sys, math, functools, threading
 
 PORT = int(os.environ.get("PORT", 8765))
 
@@ -253,8 +253,9 @@ def download_font():
     else:
         print(f"Font not found at {BUNDLED_FONT}", flush=True)
 
+@functools.lru_cache(maxsize=64)
 def get_font(size):
-    if FONT_AVAILABLE and os.path.exists(BUNDLED_FONT):
+    if FONT_AVAILABLE:
         try: return ImageFont.truetype(BUNDLED_FONT, size)
         except: pass
     for p in ["/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"]:
@@ -311,9 +312,8 @@ def generate_night_image():
     draw.text((text_cx, H//2 + 55), "לַיְלָה טוֹב", font=font_medium, fill=180, anchor="mm")
 
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf.read()
+    img.save(buf, format="PNG", optimize=False, compress_level=1)
+    return buf.getvalue()
 
 def generate_quiet_image():
     W, H = 800, 480
@@ -331,9 +331,11 @@ def generate_quiet_image():
     draw.text((W//2, H//2 + 20), "z", font=font_medium, fill=0, anchor="mm")
     draw.text((W//2 + 50, H//2 + 10), "z", font=font_small, fill=0, anchor="mm")
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf.read()
+    img.save(buf, format="PNG", optimize=False, compress_level=1)
+    return buf.getvalue()
+
+_image_cache = {"key": None, "data": None}
+_image_cache_lock = threading.Lock()
 
 def generate_clock_image():
     now = get_israel_time()
@@ -342,10 +344,33 @@ def generate_clock_image():
 
     # Night mode: 21:00 - 06:00
     if h24 >= 21 or h24 < 6:
-        return generate_night_image()
+        key = ("night",)
+        with _image_cache_lock:
+            if _image_cache["key"] == key and _image_cache["data"]:
+                return _image_cache["data"]
+        data = generate_night_image()
+        with _image_cache_lock:
+            _image_cache["key"], _image_cache["data"] = key, data
+        return data
     # Quiet mode: 06:00 - 07:30
     if h24 == 6 or (h24 == 7 and m < 30):
-        return generate_quiet_image()
+        key = ("quiet",)
+        with _image_cache_lock:
+            if _image_cache["key"] == key and _image_cache["data"]:
+                return _image_cache["data"]
+        data = generate_quiet_image()
+        with _image_cache_lock:
+            _image_cache["key"], _image_cache["data"] = key, data
+        return data
+
+    # Day mode cache key: minute hand advances every minute; text every 5 min;
+    # date/weather included so anything visible changes busts the cache.
+    weather = get_weather()
+    w_key = (weather["temp"], weather["icon_key"]) if weather else None
+    key = ("day", now.year, now.month, now.day, h24, real_m, w_key)
+    with _image_cache_lock:
+        if _image_cache["key"] == key and _image_cache["data"]:
+            return _image_cache["data"]
 
     W, H = 800, 480
     img = Image.new("L", (W, H), color=255)
@@ -433,8 +458,7 @@ def generate_clock_image():
     if period_line:
         draw.text((mid_x, bar_cy), period_line, font=font_small, fill=0, anchor="mm")
 
-    # RIGHT: weather
-    weather = get_weather()
+    # RIGHT: weather (already fetched above for cache key)
     if weather:
         temp = weather["temp"]
         desc = weather.get("desc", "לא ידוע")
@@ -454,9 +478,11 @@ def generate_clock_image():
         draw.text((text_x, bar_cy + 16), desc, font=font_small, fill=0, anchor="mm")
 
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf.read()
+    img.save(buf, format="PNG", optimize=False, compress_level=1)
+    data = buf.getvalue()
+    with _image_cache_lock:
+        _image_cache["key"], _image_cache["data"] = key, data
+    return data
 
 class ClockHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -488,4 +514,4 @@ class ClockHandler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Starting Hebrew Clock + Weather on port {PORT}", flush=True)
     download_font()
-    HTTPServer(("0.0.0.0", PORT), ClockHandler).serve_forever()
+    ThreadingHTTPServer(("0.0.0.0", PORT), ClockHandler).serve_forever()
